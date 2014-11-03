@@ -166,37 +166,32 @@ namespace /*variables information*/ {
 
 void main(int argc, char *argv[]) {
 
-	if (argc != 2) {
-		printf("Usage: analyzer.exe <raw_trace_file_name>\n"
-			"1. The trace file should be two folder up from the binary.\n"
-			"2. The file name should be without its extention.\n");
+	if (argc != 3) {
+		printf("Usage: %s <trace_file> <destination_folder>\n"
+			"(trace_file - a file containing a memory trace in a specific format,\n"
+			"destination_folder - folder name where to put the processed files)\n", strrchr(argv[0], '\\') + 1);
 		return;
 	}
 
 	struct {
 		std::string first;
 		std::string second;
-	} i = { std::string() + "../../" + argv[1] + ".json", argv[1] };
+	} i = { argv[1], argv[2] };
 
 	swatch timer;
 
 	//std::vector<std::pair<std::string, std::string>> inout_files;
-	//inout_files.push_back(std::make_pair("../../ldb-readrandom-24t-with-frees.json", "bigdata.3"));
-	//inout_files.push_back(std::make_pair("../../sharing-mystery-1.json", "data.mystery-1"));
-	//inout_files.push_back(std::make_pair("../../sharing-mystery-2.json", "data.mystery-2"));
-	//inout_files.push_back(std::make_pair("../../sharing-mystery1-new.json", "data.mystery-adv"));
 	//for (auto i : inout_files) {
-
+#ifdef _WIN32
 		SHFILEOPSTRUCTA sh = { 0, FO_DELETE, i.second.c_str(), NULL,
 			FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION,
 			FALSE, NULL, NULL };
 		SHFileOperationA(&sh);
 
 		CreateDirectoryA((LPCSTR)i.second.c_str(), NULL);
+#endif // _WIN32
 		MY_REFS.reset();
 
-		//jsonreader reader("../../data/false_sharing.json");
-		//jsonreader reader("../../wt-ldb-2.json");
 		jsonreader reader(i.first.c_str());
 		jsonreader::line_t line;
 		int idx = 0;
