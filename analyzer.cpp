@@ -164,15 +164,28 @@ namespace /*variables information*/ {
 }
 
 
-void main() {
+void main(int argc, char *argv[]) {
+
+	if (argc != 2) {
+		printf("Usage: analyzer.exe <raw_trace_file_name>\n"
+			"1. The trace file should be two folder up from the binary.\n"
+			"2. The file name should be without its extention.\n");
+		return;
+	}
+
+	struct {
+		std::string first;
+		std::string second;
+	} i = { std::string() + "../../" + argv[1] + ".json", argv[1] };
+
 	swatch timer;
 
-	std::vector<std::pair<std::string, std::string>> inout_files;
+	//std::vector<std::pair<std::string, std::string>> inout_files;
 	//inout_files.push_back(std::make_pair("../../ldb-readrandom-24t-with-frees.json", "bigdata.3"));
 	//inout_files.push_back(std::make_pair("../../sharing-mystery-1.json", "data.mystery-1"));
 	//inout_files.push_back(std::make_pair("../../sharing-mystery-2.json", "data.mystery-2"));
-	inout_files.push_back(std::make_pair("../../sharing-mystery1-new.json", "data.mystery-adv"));
-	for (auto i : inout_files) {
+	//inout_files.push_back(std::make_pair("../../sharing-mystery1-new.json", "data.mystery-adv"));
+	//for (auto i : inout_files) {
 
 		SHFILEOPSTRUCTA sh = { 0, FO_DELETE, i.second.c_str(), NULL,
 			FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION,
@@ -217,7 +230,7 @@ void main() {
 					line.get("var-name"), line.get("type"), line.get("function"));
 			}
 		}
-	}
+	//}
 	timer.stop("ELAPSED");
 	getchar();
 }
