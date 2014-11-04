@@ -7,7 +7,7 @@
 
 var threads_num = 29;
 
-var folder_1st = "data.mystery-adv/"; // "data.mystery-2/";
+var folder_1st = "data";
 var main_lower = 1000;
 var details_lower = 0;
 
