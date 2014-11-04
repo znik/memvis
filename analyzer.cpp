@@ -1,5 +1,7 @@
 #ifdef _WIN32
 #include <Windows.h>
+#else
+#include <memory.h>
 #endif
 
 #include <math.h>
@@ -164,13 +166,13 @@ namespace /*variables information*/ {
 }
 
 
-void main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
 
 	if (argc != 3) {
-		printf("Usage: %s <trace_file> <destination_folder>\n"
+		printf("Usage: analyzer <trace_file> <destination_folder>\n"
 			"(trace_file - a file containing a memory trace in a specific format,\n"
-			"destination_folder - folder name where to put the processed files)\n", strrchr(argv[0], '\\') + 1);
-		return;
+			"destination_folder - folder name where to put the processed files)\n");
+		return 0;
 	}
 
 	struct {
@@ -195,7 +197,6 @@ void main(int argc, char *argv[]) {
 		jsonreader reader(i.first.c_str());
 		jsonreader::line_t line;
 		int idx = 0;
-		int percent = 0;
 		{
 			jsonfile json(i.second + "/main.json");
 			while (reader.readline(line)) {
@@ -228,4 +229,5 @@ void main(int argc, char *argv[]) {
 	//}
 	timer.stop("ELAPSED");
 	getchar();
+	return 1;
 }

@@ -31,7 +31,7 @@ struct jsonfile {
 
 		_lk.lock();
 		fprintf(_json, "{\"event\": \"memory-access\", \"type\" : \"write\", \"thread-id\" : \"%d\", ", tid);
-		fprintf(_json, "\"address\" : \"0x%08x\", \"size\" : \"%d\", \"function\" : \"[stub]\"},\n", addr, size);
+		fprintf(_json, "\"address\" : \"0x%p\", \"size\" : \"%d\", \"function\" : \"[stub]\"},\n", addr, size);
 		_lk.unlock();
 		return true;
 	}
