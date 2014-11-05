@@ -1,291 +1,217 @@
-//
-//
-//
+/* Nik Zaborovsky, Nov-2014 */
 
-// 9 - intensity of working with each CL
-// ?10 - false sharing candidates
-
-var threads_num = 29;
-
-var folder_1st = "data/";
-var main_lower = 1000;
-var details_lower = 0;
+var txt = {length: 100, xsize: 20, ysize: 20};
+var threads = 29; // FIXME: dynamic getting from file
 
 
-var show_vars = function(filename) {
-  d3.json(filename, function(error, data) {
+var show_uber_table = function(results) {
+	d3.selectAll("#demo").remove();
 
+	d3.select("body").select("#tab").append("div")
+		.attr("id", "demo")
+		.style("width", "1200px");
 
-  var margin = {top: 40, right: 40, bottom: 0, left: 40}; 
+	$(document).ready(function() {
+  		$('#demo').html( '<table cellpadding="0" cellspacing="0" border="0" class="display" id="example"></table>' );
+	} );
 
-  var width = 1200 // / 4,
-      height = 400 / 8;
+	$('#example').dataTable( {
+		"autoWidth": false,
+		//"lengthChange": false,
+		//"paging": false,
+    	"data": results,
+    	"columns": [
+    		{ "title": "#" },
+    		{ "title": "Address" },
+     		{ "title": "Sharing Intensity, KPMI" },
+     		{ "title": "Function" },
+		    { "title": "Source Location" },
+    		{ "title": "Variable Name", "class": "center" },
+    		{ "title": "Allocation Site", "class": "center" }
+    	]
+  	});
+}
 
-  var center = {x: margin.left + width / 2, y: margin.top + height / 2};
+var results = [];
+var remainingFiles = 0;
 
- 
-  data = data.filter(function(d) {
-    return d["refs"] > +details_lower;
-  });
+function callback(details, funcname, num) {
+	details = details.filter(function(d) {
+	for(var i = 0; i < threads; i++) {
+		var field = "inf" + i;
+		if (d[field].indexOf(funcname) != -1)
+			return true;
+		}
+		return false;
+	})
 
- if (data.length == 0)
-    return;
-
-  var max_refs = 0;
-  data.forEach(function(d) {
-    var p = +d["refs"];
-    if (p > max_refs)
-      max_refs = p;
-  });
-
-  var pane_height = height;
-  var main = d3.select("body").select("#main");
-
-  var svg = main.append("svg")
-    .attr("x", 0)
-    .attr("y", 0)
-    .attr('class', 'detailed_view')
-    .attr("height", pane_height + 30 + 10 * threads_num)
-    .attr("width", width)
-    .append("g");
-
-  var pane = svg.append("rect")
-    .attr('class', 'backpaper')
-    .attr("fill", "none")
-    .attr("x", 0)
-    .attr("y", 0)
-    .attr("height", pane_height)
-    .attr("width", width - 2);
-
-  data.forEach(function(d, i) {
-    var draw_height = pane_height; // - margin.top - margin.bottom;
-    var item_width = (width) / data.length;
-    if (item_width > 40)
-      item_width = 40;
-    var x = item_width * i;
-    var y = draw_height - draw_height * d["refs"] / max_refs;
-    var col = 255 - 255 * (+d["refs"]) / max_refs;
-    var color = d3.rgb(255, col, col);
-
-      var xs_bar = svg.append("rect")
-        .attr('class', 'xs_bar')
-        .datum([x, y, d])
-        .attr("fill", color)
-        .attr("x", x)
-        .attr("y", y)
-        .attr("height", draw_height - y)
-        .attr("width", item_width - 1)
-        .on("click", function(d) {
-          // FIXME !
-          //main.selectAll("svg").remove();
-          //console.log("Loading... " + folder_1st + parseInt(d[0]) + ".json");
-          //show_accesses(folder_2nd + parseInt(d[0]/1024) + ".json");
-        })
-        .on("mouseover", function(d) {
-          svg.append("rect")
-            .attr('class', 'xs_highlight')
-            .attr("fill", "none")
-            .attr("x", d[0] - 1)
-            .attr("y", d[1] - 1)
-            .attr("stroke", "black")
-            .attr("height", draw_height - d[1] + 2)
-            .attr("width", item_width + 2);
-
-            var r = svg.append("g")
-              //.datum(d[3])
-              .attr('class', 'hint')
-              .attr("fill", "none")
-              .attr("stroke", "black");
-
-            var x_t = d[0] + 30, y_t = d[1] + 40;
-            if (x_t > center.x)
-              x_t -= 100;
-
-            var t = r.append("text")
-              .attr("x", x_t)
-              .attr("y", y_t)
-              .attr("dy", ".35em")
-              //.text(d[2]["refs"]);
-            
-
-            var span = t.append("tspan");
-            span.datum(d[2]).attr("x", 0).attr("y", pane_height + 10).html(function(d) {
-              return "Address: " + d["addr"];
-            })
-            span = t.append("tspan");
-            span.datum(d[2]).attr("x", 0).attr("y", pane_height + 20).html(function(d) {
-              return "AllRefs: " + d["refs"];
-            })
-
-
-            for (var j = 0; j < threads_num; j++) {
-              //var prop = "inf" + j;
-              var span = t.append("tspan");
-              span.datum([d[2], j]).attr("x", 0).attr("y", pane_height + 10 * (j+3)).html(function(d) {
-                var str = d[0]["inf" + d[1]];
-                //console.log("inf" + d[1], str);
-                return d[1] + "(" + d[0]["ref" + d[1]] + "):" +
-                  str.replace("<", "[").replace("<", "[").replace(">", "]").replace(">", "]"); });
-            }
-            //t.append("tspan").attr("x", 0).attr("y", pane_height+20).html(function(d) {
-            //  return "count:" + d["count"];  });
-        })               
-        .on("mouseout", function(d) {
-            svg.select(".xs_highlight").remove();
-            svg.select(".hint").remove();
-        });
-  });
-  });
-};
-
-var show_accesses = function(filename) {
-  d3.json(filename, function(error, data) {
-
-  var margin = {top: 30, right: 40, bottom: 30, left: 40};
-
-  var width = 1200 - margin.left - margin.right,
-      height = 400 / 4 - margin.top - margin.bottom;
-
-  var center = {x: margin.left + width / 2, y: margin.top + height / 2};
-
-  var max_refs = 0;
-  data.forEach(function(d) {
-      var p = +d["max"];
-      if (p > max_refs)
-        max_refs = p;
-  });
-
-
-//  var slider = d3.select("body").select("#slider");
-//  slider.attr("min", min_refs).attr("max", max_refs);
-
-  data = data.filter(function(d) {
-    return d["max"] > +main_lower;
-  });
-
-  var pane_height = height;
-	var main = d3.select("body").select("#main");
-	var svg = main.append("svg")
-    .attr("x", 0)
-  	.attr("y", 0)
-  	.attr("height", height + margin.top + margin.bottom)
-    .attr("width", width)
-    .append("g");
-
-/*
-  d3.select(".main_view")
-    .selectAll("div")
-    .data(data)
-    .enter().append("div")
-    //.style("background-color", function(d) { return d3.rgb(255 - 255 * d["max"] / max_refs, 255 - 255 * d["max"] / max_refs, 255); })
-    .style("width", function(d) { return 50 + 50 * d["max"] / max_refs + "px"; })
-    .text(function(d) { return d["max"]; })
-    .on("click", function(d) {
-        var subview = d3.select(this).append("div");
-        show_vars(folder_1st + parseInt(d["num"]) + ".json", subview);
-    });
-*/
-
- 	data.forEach(function(d, i) {
-    var item_width = (width - margin.left - margin.right) / data.length;
-    var x = item_width * i;
-
-    var y = margin.top;
- 
-    var col = 255 - 255 * d["max"] / max_refs; //255 - 255 * (+d[fields[j]]) / max_refs;
-    var color = d3.rgb(255, col, col);
-
-    if (+d["max"] > 1000)
-      show_vars(folder_1st + d["num"] + ".json");
-
-	  var xs_bar = svg.append("rect")
-      .attr('class', 'xs_bar')
-      .datum([d["num"], margin.left + x, y, d, d["max"]])
-      .attr("fill", color)
-  		.attr("x", margin.left + x)
-			.attr("y", y)
-  		.attr("height", pane_height)
-  		.attr("width", item_width - 1)
-      .on("click", function(d) {
-        main.selectAll(".detailed_view").remove();
-        svg.select(".click_highlight").remove();
-        svg.select(".click_hint").remove();
-        svg.append("rect")
-          .attr('class', 'click_highlight')
-          .attr("fill", "none")
-          .attr("x", d[1] - 1)
-          .attr("y", d[2] - 1)
-          .attr("stroke", "black")
-          .attr("height", pane_height + 2)
-          .attr("width", item_width + 2 - 1);
-
-        var r = svg.append("g")
-          .datum(d[3])
-          .attr('class', 'click_hint')
-          .attr("fill", "none")
-          .attr("stroke", "black");
-
-        var x_t = d[1], y_t = d[2] + 50;
-
-        var t = r.append("text")
-          .attr("x", x_t)
-          .attr("y", y_t)
-          .attr("dy", ".35em")
-          .text("["+d[0]+"]"+d[4]);   
-
-
-        console.log("Loading... " + folder_1st + parseInt(d[0]) + ".json");
-        show_vars(folder_1st + parseInt(d[0]) + ".json");
-      })
-      .on("mouseover", function(d) {
-        svg.append("rect")
-          .attr('class', 'xs_highlight')
-          .attr("fill", "none")
-          .attr("x", d[1] - 1)
-          .attr("y", d[2] - 1)
-          .attr("stroke", "black")
-          .attr("height", pane_height + 2)
-          .attr("width", item_width + 2 - 1);
-
-        var r = svg.append("g")
-          .datum(d[3])
-          .attr('class', 'hint')
-          .attr("fill", "none")
-          .attr("stroke", "black");
-
-        var x_t = d[1], y_t = d[2] + 60;
-
-        var t = r.append("text")
-          .attr("x", x_t)
-          .attr("y", y_t)
-          .attr("dy", ".35em")
-          .text("["+d[0]+"]"+d[4])            
-        })               
-        .on("mouseout", function(d) {
-            svg.select(".xs_highlight").remove();
-            svg.select(".hint").remove();
-        });
+	details.forEach(function(line) {
+		var sum = 0;
+		var parts = [];
+		for(var i = 0; i < threads; i++) {
+			var infN = "inf" + i;
+			var refN = "ref" + i;
+			if (line[refN] != "0") {
+				var info = line[infN];
+				parts = info.split(/,|\(|\)/);
+				sum += +line[refN];
+			}
+		}
+		var Ksum = Math.floor(sum * 2 / 10) / 100;
+		results[results.length] = [num, "0x" + (+line.addr).toString(16), Ksum, parts[2], parts[0], parts[1], ""];
 	});
 
-  });
+	remainingFiles--;
+	
+	if (remainingFiles == 0)
+		show_uber_table(results);
+}
+
+function function_details(subfile) {
+	results = [];
+	remainingFiles = subfile.length;
+	d3.selectAll(".details_view").remove();
+	var details;
+
+	subfile.forEach(function(filename) {
+		d3.json(filename[0], function(error, det) {
+			details = det;
+			callback(details, filename[1], filename[2])
+		});
+	});
+
 };
 
 
-var showVal = function(value) {
-  console.log(value);
-  var main = d3.select("body").select("#main");
-  main.selectAll("svg").remove();
-  main_lower = value;
-  show_accesses(folder_1st + "main.json");
-}
 
-var showVal2 = function(value) {
-  console.log(value);
-  var main = d3.select("body").select("#main");
-  main.selectAll("svg").remove();
-  details_lower = value;
-  show_accesses(folder_1st + "main.json");
-}
+var invalidate = function() {
+
+d3.json("data/main.json", function(table) {
+	// Assiging indices to functions
+	var bfunctions = new Array();
+	var functions = [];
+	// Assigning indices to sample numbers - "num"
+	var btimes = new Array();
+	var times = [];
+
+	var fcount = 0;
+	var tcount = 0;
+
+	var max_sharing = 0;
+
+	table = table.filter(function(d){ return +d.refs > 400; })
+
+	table.forEach(function(line) {
+		if (bfunctions[line.func] == undefined) {
+			bfunctions[line.func] = fcount;
+			fcount++;
+			functions[functions.length] = line.func;
+		}
+		if (btimes[line.num] == undefined) {
+			btimes[line.num] = tcount;
+			tcount++;
+			times[times.length] = line.num;
+		}
+		if (+line.refs > +max_sharing)
+			max_sharing = +line.refs;
+	});
+
+	var margin = {top: 20, right: 0, bottom: 40, left: 80},
+    	width = tcount * txt.xsize + txt.length,
+    	height = fcount * txt.ysize;
+
+	var svg = d3.select("body").select("#main")
+		.append("svg")
+    	.attr("width", width + margin.left + margin.right)
+    	.attr("height", height + margin.top + margin.bottom)
+    	.style("margin-left", -margin.left + "px")
+    	.append("svg:g")
+    	.attr("transform", function() {
+    		var x = margin.left + txt.length;
+    		return "translate(" + x + ", " + margin.top + ")"; 
+    	})
+//		.call(d3.behavior.zoom().on("zoom", redraw))
+//    	.append("g");
+
+//	function redraw() {
+//		svg.attr("transform",
+//      		"translate(" + d3.event.translate + ")"
+//      		+ " scale(" + d3.event.scale + ")");
+//	}
+
+	svg.append("rect")
+		.attr("class", "background")
+		.attr("width", width)
+		.attr("height", height);
+
+	var row = svg.selectAll(".row")
+		.data(functions)
+    	.enter().append("g")
+      		.attr("class", "row")
+      		.attr("transform", function(d, i) { return "translate(0," + ((i + 1) * txt.ysize) + ")"; });
+
+  	row.append("line")
+		.attr("x2", width);
+
+  	row.append("text")
+		.attr("x", -5)
+		.attr("y", function(d, i) { return -txt.ysize / 2; })
+		.attr("dy", ".32em")
+		.attr("text-anchor", "end")
+		.text(function(d, i) { return functions[i].substring(0, 20); });
 
 
-show_accesses(folder_1st + "main.json");
+	var column = svg.selectAll(".column")
+		.data(times)
+    	.enter().append("g")
+      		.attr("class", "column")
+      		.attr("transform", function(d, i) { return "translate(" + ((i + 1) * txt.xsize) + ")rotate(-90)"; });
+
+  	column.append("line")
+    	.attr("x1", -width);
+
+	column.append("text")
+		.attr("x", 5)
+      	.attr("y", -txt.ysize / 2)
+      	.attr("dy", ".32em")
+      	.attr("text-anchor", "start")
+      	.text(function(d, i) { return times[i]; });
+
+    var filesandfunctions = [];
+
+	table.forEach(function(line) {
+
+		var cell = svg.append("rect")
+			.datum(line)
+        	.attr("x", function(d) { return +txt.xsize * +btimes[d.num] + 1; })
+        	.attr("y", function(d) { return +txt.ysize * +bfunctions[d.func] + 1; })
+        	.attr("width", txt.xsize - 2)
+       		.attr("height", txt.ysize - 2)
+       		.style("fill-opacity", function(d) { return 0.2 + 0.8 * d.refs / max_sharing; })
+       		.style("fill", function(d) { return "#FFA465"; })
+       		.attr("class", "cell")
+       		.on("click", function(d) {
+       			console.log("data/" + d.num + ".json");
+       			function_details([["data/" + d.num + ".json", d.func, d.num]]);
+				svg.append("rect")
+					.datum(d)
+					.attr("class", "details_view")
+        			.attr("x", function(d) { return +txt.xsize * +btimes[d.num] + 1; })
+        			.attr("y", function(d) { return +txt.ysize * +bfunctions[d.func] + 1; })
+        			.attr("width", txt.xsize - 2)
+       				.attr("height", txt.ysize - 2)
+       				.style("stroke", "black")
+       				.style("stroke-width", 3)
+       				.style("fill", "none");
+
+       		})
+		    .on("mouseover", function() { d3.select(this).style("stroke", "#4A0D3F").style("stroke-width", 3);  })
+		    .on("mouseout", function() { d3.select(this).style("stroke", "none"); })
+		filesandfunctions[filesandfunctions.length] = ["data/" + line.num + ".json", line.func, line.num];
+	});
+	function_details(filesandfunctions);
+});
+}; // function
+
+invalidate();
+
