@@ -18,7 +18,7 @@
 // We are analyzing 100k consecutive accesses by all threads
 // to determine the metric that serves to determine false sharing.
 
-#define SAMPLES_NUM		100000
+#define SAMPLES_NUM		500000
 #define ONE_PERCENT		(SAMPLES_NUM / 100)
 
 //#define THREADS_NUM		7
@@ -26,6 +26,7 @@
 
 #define MB	(1 << 20)
 
+#define MIN_REF_THRESHOLD	50
 
 // /O2	-- 497s
 
@@ -52,7 +53,7 @@ namespace /*variables information*/ {
 				return;
 			jsonfile json(filename);
 			for (auto e : _REFS) {
-				if (50 > e.second._refs)
+				if (MIN_REF_THRESHOLD > e.second._refs)
 					continue;
 
 				json.start_collection();
@@ -66,8 +67,9 @@ namespace /*variables information*/ {
 				json.end_collection();
 			}
 		}
-		void reset() { _REFS.clear(); _INFO.clear(); _CACHELINE_LOADS.clear(); MAX_WRITES = 0; };
-		void ref(const int threadid, const ull_t addr, const std::string& info,
+		void reset() { _REFS.clear(); _INFO.clear(); _CACHELINE_LOADS.clear(); MAX_WRITES = 0; _FUNC.clear(); _FUNC_REFS.clear(); };
+		void ref(const int threadid, const ull_t addr,
+			const std::string& info,					// src-location
 			const std::string& varname,
 			const std::string& type,
 			const std::string& funcname)
@@ -79,19 +81,30 @@ namespace /*variables information*/ {
 			}
 			const std::string info_str = info + "(" + varname + ", " + funcname + ")";
 			const int hash = hasher(info_str);
+			const int funchash = hasher(funcname);
+
 			// WARNING (FIXME): Possible loss of data if the same address is used
 			// for different vars after freeing
+			
 			std::string& str = _INFO[hash];
 			if (str.empty())
 				str = info_str;
+			
+			std::string& function = _FUNC[funchash];
+			if (function.empty())
+				function = funcname;
+
 			const short access_type = ("read" == type) ? READ_TYPE : WRITE_TYPE;
 
 			try {
-				// Other thread wrote to this address
+				// (Other thread wrote to this address)
 				addr_info_t& addrinfo = _CACHELINE_LOADS.at(addr / 64);
 
 				if (WRITE_TYPE == access_type)
 					memset(addrinfo._updated, 0x0, sizeof(addrinfo._updated));
+
+				// (!) This is the core part: calculating metric that represents
+				// the extent of sharing.
 
 				if (addrinfo._lastthread != threadid) {
 					++addrinfo._thr_refs[threadid];
@@ -102,6 +115,11 @@ namespace /*variables information*/ {
 					{
 						single_address_ref(addr, threadid, hash);
 						++addrinfo._refs;
+
+						// (!) Another metric is how many refs increments
+						// occured in each function context.
+						++_FUNC_REFS[funchash];
+
 						if (addrinfo._refs > MAX_WRITES)
 							MAX_WRITES = addrinfo._refs;
 					}
@@ -110,7 +128,7 @@ namespace /*variables information*/ {
 				}
 			}
 			catch (const std::out_of_range&) {
-				// First write to the address
+				// (First write to the address)
 				addr_info_t& addrinfo = _CACHELINE_LOADS[addr / 64];
 				addrinfo._lastthread = threadid;
 				addrinfo._hash_info[threadid] = hash;
@@ -137,6 +155,25 @@ namespace /*variables information*/ {
 			catch (...) {};
 		}
 
+		void write_functions(jsonfile& where, const int num) const {
+			if (MY_REFS.empty())
+				return;
+			
+			const std::string& maxwrites = std::to_string(max_writes());
+			const std::string& stringnum = std::to_string(num);
+			for (auto i : _FUNC_REFS) {
+				if (MIN_REF_THRESHOLD > i.second)
+					continue;
+
+				where.start_collection();
+				where.write_to_collection("num", stringnum);
+				where.write_to_collection("max", maxwrites);
+				where.write_to_collection("func", _FUNC[i.first]);
+				where.write_to_collection("refs", std::to_string(i.second));
+				where.end_collection();
+			}
+		}
+
 		inline const int max_writes() const { return MAX_WRITES;  }
 		inline const bool empty() const { return _REFS.size() == 0; }
 	private:
@@ -160,6 +197,9 @@ namespace /*variables information*/ {
 		std::map/*(addr, threadid)*/<ull_t, addr_info_t> _REFS;
 		std::map<ull_t, addr_info_t> _CACHELINE_LOADS;
 		mutable std::map/*(hash, info)*/<int, std::string> _INFO;
+
+		std::map/*(funchash, refcount)*/<int, int> _FUNC_REFS;
+		mutable std::map/*(hash, funcname)*/<int, std::string> _FUNC;
 
 		int MAX_WRITES;
 	} MY_REFS;
@@ -200,18 +240,12 @@ int main(int argc, char *argv[]) {
 		{
 			jsonfile json(i.second + "/main.json");
 			while (reader.readline(line)) {
+
 				if (0 != idx && 0 == idx % SAMPLES_NUM) {
 					printf("\rMAX=%d\n", MY_REFS.max_writes());
 
 					MY_REFS.dump(i.second + '/' + std::to_string(int(idx / SAMPLES_NUM)) + ".json");
-
-					if (!MY_REFS.empty()) {
-						json.start_collection();
-						json.write_to_collection("num", std::to_string(int(idx / SAMPLES_NUM)));
-						json.write_to_collection("max", std::to_string(MY_REFS.max_writes()));
-						json.end_collection();
-					}
-
+					MY_REFS.write_functions(json, int(idx / SAMPLES_NUM));
 					MY_REFS.reset();
 				}
 				++idx;
