@@ -1,6 +1,6 @@
 /* Nik Zaborovsky, Nov-2014 */
 
-var txt = {length: 100, xsize: 20, ysize: 20};
+var txt = {length: 140, xsize: 20, ysize: 20};
 var threads = 29; // FIXME: dynamic getting from file
 
 
@@ -13,23 +13,40 @@ var show_uber_table = function(results) {
 
 	$(document).ready(function() {
   		$('#demo').html( '<table cellpadding="0" cellspacing="0" border="0" class="display" id="example"></table>' );
-	} );
 
-	$('#example').dataTable( {
-		"autoWidth": false,
-		//"lengthChange": false,
-		//"paging": false,
-    	"data": results,
-    	"columns": [
-    		{ "title": "#" },
-    		{ "title": "Address" },
-     		{ "title": "Sharing Intensity, KPMI" },
-     		{ "title": "Function" },
-		    { "title": "Source Location" },
-    		{ "title": "Variable Name", "class": "center" },
-    		{ "title": "Allocation Site", "class": "center" }
-    	]
-  	});
+  		$('#example').dataTable( {
+  			//dom: 'T<"clear"><"clear">lfrtip',
+  			dom: '<"clear">Tftlp',
+			"tableTools": {
+            	"aButtons": [
+                {
+                    "sExtends": "csv",
+                    "sButtonText": "Save to CSV",
+                    "sButtonClass": "btn"
+                },
+                {
+                    "sExtends": "print",
+                    "sButtonText": "Print",
+                    "sButtonClass": "btn"
+                }
+            	]
+        	},
+			"autoWidth": false,
+			//"lengthChange": false,
+			//"paging": false,
+    		"data": results,
+    		"columns": [
+    			{ "title": "#" },
+    			{ "title": "Address" },
+     			{ "title": "Sharing Intensity, KPMI" },
+     			{ "title": "Function" },
+		    	{ "title": "Source Location" },
+    			{ "title": "Variable Name", "class": "center" },
+    			{ "title": "Allocation Site", "class": "center" }
+    		]
+  		}); // table
+ 
+	} );
 }
 
 var results = [];
@@ -57,6 +74,8 @@ function callback(details, funcname, num) {
 				sum += +line[refN];
 			}
 		}
+		// Recent results are calculated using 500K sampling intervals,
+		// as we are calcualting KPMI, we need to *2/1000.
 		var Ksum = Math.floor(sum * 2 / 10) / 100;
 		results[results.length] = [num, "0x" + (+line.addr).toString(16), Ksum, parts[2], parts[0], parts[1], ""];
 	});
@@ -83,6 +102,17 @@ function function_details(subfile) {
 };
 
 
+function parseSecond(val) {
+    var result = undefined,
+        tmp = [];
+    var items = location.search.substr(1).split("&");
+    for (var index = 0; index < items.length; index++) {
+        tmp = items[index].split("=");
+        if (tmp[0] === val) result = decodeURIComponent(tmp[1]);
+    }
+    return result;
+}
+
 
 var invalidate = function() {
 
@@ -99,7 +129,14 @@ d3.json("data/main.json", function(table) {
 
 	var max_sharing = 0;
 
-	table = table.filter(function(d){ return +d.refs > 400; })
+	var threshold = 400;
+	var new_threshold = parseSecond("threshold");
+	if (new_threshold != undefined)
+		threshold = new_threshold;
+	else
+		location.href = "index.html?threshold=" + threshold;
+
+	table = table.filter(function(d){ return +d.refs > threshold; })
 
 	table.forEach(function(line) {
 		if (bfunctions[line.func] == undefined) {
@@ -116,7 +153,7 @@ d3.json("data/main.json", function(table) {
 			max_sharing = +line.refs;
 	});
 
-	var margin = {top: 20, right: 0, bottom: 40, left: 80},
+	var margin = {top: 25, right: 0, bottom: 0, left: 80},
     	width = tcount * txt.xsize + txt.length,
     	height = fcount * txt.ysize;
 

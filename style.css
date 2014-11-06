@@ -7,14 +7,29 @@ line {
   stroke: #fff;
 }
 
+.btn {
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 12px;
+  background: #c1c9c8;
+  padding: 4px 10px 4px 10px;
+  text-decoration: none;
+  margin-left: 2px;
+  margin-right: 2px;
+}
+
+.btn:hover {
+  background: #FFA465;
+  text-decoration: none;
+}
+
 h1, h3 {
   color: #91234C;
 }
 
-text {
-  stroke: black;
-  font: 10px sans-serif;
-}
 
 .circle {
   opacity: 0.0;
