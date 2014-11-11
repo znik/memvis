@@ -160,7 +160,7 @@ namespace /*variables information*/ {
 		}
 
 		void write_functions(jsonfile& where, const int num) const {
-			if (MY_REFS.empty())
+			if (empty())
 				return;
 			
 			const std::string& maxwrites = std::to_string(max_writes());
