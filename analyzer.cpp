@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <algorithm>
 #include "stopwatch.h"
 #include "jsonreader.hpp"
 #include "jsonwriter.hpp"
@@ -30,6 +31,8 @@
 
 // /O2	-- 497s
 
+
+const static char* REPORT_VER = "0 2 0 0";
 
 
 namespace /*memory regions information*/ {
@@ -72,14 +75,15 @@ namespace /*variables information*/ {
 			const std::string& info,					// src-location
 			const std::string& varname,
 			const std::string& type,
-			const std::string& funcname)
+			const std::string& funcname,
+			const std::string& allocloc)				// alloc-location
 		{
 			if (threadid >= THREADS_NUM || threadid < 0) {
 				printf("ERROR: unexpected thread id (set THREAD_NUM at least to %d)\n", threadid + 1);
 				assert(false && "ThreadId has unexpected value");
 				return;
 			}
-			const std::string info_str = info + "(" + varname + ", " + funcname + ")";
+			const std::string info_str = info + "(" + varname + ", " + funcname + ", " + allocloc + ")";
 			const int hash = hasher(info_str);
 			const int funchash = hasher(funcname);
 
@@ -208,8 +212,8 @@ namespace /*variables information*/ {
 
 int main(int argc, char *argv[]) {
 
-	if (argc != 3) {
-		printf("Usage: analyzer <trace_file> <destination_folder>\n"
+	if (argc != 3 && argc != 2) {
+		printf("Usage: analyzer <trace_file> [destination_folder]\n"
 			"(trace_file - a file containing a memory trace in a specific format,\n"
 			"destination_folder - folder name where to put the processed files)\n");
 		return 0;
@@ -218,7 +222,9 @@ int main(int argc, char *argv[]) {
 	struct {
 		std::string first;
 		std::string second;
-	} i = { argv[1], argv[2] };
+	} i = { argv[1], argc == 2 ? "data" : argv[2] };
+
+	i.second = "server/" + i.second;
 
 	swatch timer;
 
@@ -239,6 +245,18 @@ int main(int argc, char *argv[]) {
 		int idx = 0;
 		{
 			jsonfile json(i.second + "/main.json");
+
+			json.start_collection();
+			std::string fname = i.first;
+			std::replace(fname.begin(), fname.end(), '.', '#');
+			std::replace(fname.begin(), fname.end(), '\\', '@');
+			std::replace(fname.begin(), fname.end(), '/', '@');
+
+			json.write_to_collection("file", fname);
+			json.write_to_collection("ver", REPORT_VER);
+			json.write_to_collection("threadnum", std::to_string(THREADS_NUM));
+			json.end_collection();
+
 			while (reader.readline(line)) {
 
 				if (0 != idx && 0 == idx % SAMPLES_NUM) {
@@ -257,7 +275,7 @@ int main(int argc, char *argv[]) {
 				int tid = std::stoi(stid);
 
 				MY_REFS.ref(tid, addr, line.get("source-location"),
-					line.get("var-name"), line.get("type"), line.get("function"));
+					line.get("var-name"), line.get("type"), line.get("function"), line.get("alloc-location"));
 			}
 		}
 	//}

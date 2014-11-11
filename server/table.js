@@ -1,7 +1,7 @@
 /* Nik Zaborovsky, Nov-2014 */
 
 var txt = {length: 140, xsize: 20, ysize: 20};
-var threads = 29; // FIXME: dynamic getting from file
+var threads = 29;
 
 
 var show_uber_table = function(results) {
@@ -9,7 +9,7 @@ var show_uber_table = function(results) {
 
 	d3.select("body").select("#tab").append("div")
 		.attr("id", "demo")
-		.style("width", "1200px");
+		.style("width", "100%");
 
 	$(document).ready(function() {
   		$('#demo').html( '<table cellpadding="0" cellspacing="0" border="0" class="display" id="example"></table>' );
@@ -38,7 +38,7 @@ var show_uber_table = function(results) {
     		"columns": [
     			{ "title": "#" },
     			{ "title": "Address" },
-     			{ "title": "Sharing Intensity, KPMI" },
+     			{ "title": "Sharing Intensity*, KPMI" },
      			{ "title": "Function" },
 		    	{ "title": "Source Location" },
     			{ "title": "Variable Name", "class": "center" },
@@ -77,7 +77,7 @@ function callback(details, funcname, num) {
 		// Recent results are calculated using 500K sampling intervals,
 		// as we are calcualting KPMI, we need to *2/1000.
 		var Ksum = Math.floor(sum * 2 / 10) / 100;
-		results[results.length] = [num, "0x" + (+line.addr).toString(16), Ksum, parts[2], parts[0], parts[1], ""];
+		results[results.length] = [num, "0x" + (+line.addr).toString(16), Ksum, parts[2], parts[0], parts[1], parts[3]];
 	});
 
 	remainingFiles--;
@@ -116,7 +116,7 @@ function parseSecond(val) {
 
 var invalidate = function() {
 
-d3.json("data/main.json", function(table) {
+d3.json("data/main.json", function(error, table) {
 	// Assiging indices to functions
 	var bfunctions = new Array();
 	var functions = [];
@@ -130,6 +130,12 @@ d3.json("data/main.json", function(table) {
 	var max_sharing = 0;
 
 	var threshold = 400;
+
+	// {"file": "sharing-mystery1-new json","ver": "0 2 0 0","threadnum": "29"}
+	threads = +table[0].threadnum;
+	var pfile = table[0].file;
+	table.shift(); // remove the first line
+
 	var new_threshold = parseSecond("threshold");
 	if (new_threshold != undefined)
 		threshold = new_threshold;
@@ -153,20 +159,19 @@ d3.json("data/main.json", function(table) {
 			max_sharing = +line.refs;
 	});
 
-	var margin = {top: 25, right: 0, bottom: 0, left: 80},
-    	width = tcount * txt.xsize + txt.length,
+	var margin = {top: 30, right: 0, bottom: 0, left: 80},
+    	width = tcount * txt.xsize + txt.xsize,
     	height = fcount * txt.ysize;
 
 	var svg = d3.select("body").select("#main")
 		.append("svg")
-    	.attr("width", width + margin.left + margin.right)
+    	.attr("width", width)
     	.attr("height", height + margin.top + margin.bottom)
-    	.style("margin-left", -margin.left + "px")
+//    	.style("margin-left", -200 + "px")
     	.append("svg:g")
     	.attr("transform", function() {
-    		var x = margin.left + txt.length;
-    		return "translate(" + x + ", " + margin.top + ")"; 
-    	})
+    		return "translate(0, " + margin.top + ")"; 
+		})
 //		.call(d3.behavior.zoom().on("zoom", redraw))
 //    	.append("g");
 
@@ -181,6 +186,43 @@ d3.json("data/main.json", function(table) {
 		.attr("width", width)
 		.attr("height", height);
 
+	// ==================== FUNC NAMES left panel =====================
+
+	var leftpan = d3.select("#funcnames").append("svg")
+    	.attr("width", txt.length)
+    	.attr("height", height + margin.top + margin.bottom)
+    	//.style("margin-left", -margin.left + "px")
+    	.append("svg:g")
+    	.attr("transform", function() {
+    		var x = txt.length;
+    		return "translate(" + x + ", " + margin.top + ")"; 
+    	});
+
+	var leftrows = leftpan.selectAll(".row")
+		.data(functions)
+    	.enter().append("g")
+      		.attr("class", "row")
+      		.attr("transform", function(d, i) { return "translate(0," + ((i) * txt.ysize) + ")"; });
+
+  	leftrows.append("text")
+		.attr("x", 0)
+		.attr("y", function(d, i) { return -txt.ysize / 2; })
+		.attr("dy", ".32em")
+		.attr("text-anchor", "end")
+		.text(function(d, i) {
+			return functions[i].substring(0, 20);
+		});
+
+
+	// ===================== FILE line =================================
+
+
+    d3.select("#file").text(function() {
+    	return "File: " + pfile.replace(/#/g, '.').replace(/@/g, '/');
+    });
+
+    // ====================== MAIN central panel =======================
+
 	var row = svg.selectAll(".row")
 		.data(functions)
     	.enter().append("g")
@@ -189,14 +231,6 @@ d3.json("data/main.json", function(table) {
 
   	row.append("line")
 		.attr("x2", width);
-
-  	row.append("text")
-		.attr("x", -5)
-		.attr("y", function(d, i) { return -txt.ysize / 2; })
-		.attr("dy", ".32em")
-		.attr("text-anchor", "end")
-		.text(function(d, i) { return functions[i].substring(0, 20); });
-
 
 	var column = svg.selectAll(".column")
 		.data(times)
@@ -208,10 +242,10 @@ d3.json("data/main.json", function(table) {
     	.attr("x1", -width);
 
 	column.append("text")
-		.attr("x", 5)
+		.attr("x", 25)
       	.attr("y", -txt.ysize / 2)
       	.attr("dy", ".32em")
-      	.attr("text-anchor", "start")
+      	.attr("text-anchor", "end")
       	.text(function(d, i) { return times[i]; });
 
     var filesandfunctions = [];

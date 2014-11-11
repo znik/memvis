@@ -21,13 +21,25 @@
       </p>
     </div>
     <h3>Main View:</h3>
+    <div style='height:40px' id="file"></div>
+
+    <div style='width:300px;height:150px;float: right;border: 0px solid red' id="legend">
+      <img src="legend_shorter.png" style='width:300px'>
+    </div>
+    <div style='float:left;width:150px;border: 0px solid red'>
+      <div align="center" style='width:150px;height:20px;border: 0px solid red;font-size:15px;font-weight: bold'>Series of accesses,10<span class=sup>6</span>:</div>
+      <div style='width:150px;border: 0px solid red' id="funcnames"></div>
+    </div>
+    <div style='overflow-x:scroll;overflow-y:hidden;'>
     <div id="main"></div>
+    </div>
+
     <h3>Detailed View:</h3>
-    Sharing Intensity (Metric) - thousands of sharing exchanges (read followed by a write to the same 64-byte chunk from a different thread) per million of accesses.
+    *Sharing Intensity: thousands of sharing exchanges (write followed by a read to the same 64-byte chunk from a different thread) per million of accesses (KPMI).
     <h4></h4>
     <div id="tab"></div>
  </body>
 </html>
 
-<script type="text/javascript" src="script.js"></script>
+<script type="text/javascript" src="table.js"></script>
 
