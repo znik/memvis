@@ -32,7 +32,7 @@
 // /O2	-- 497s
 
 
-const static char* REPORT_VER = "0 2 0 0";
+const static char* REPORT_VER = "0 3 0 0";
 
 
 namespace /*memory regions information*/ {
@@ -85,7 +85,7 @@ namespace /*variables information*/ {
 			}
 			const std::string info_str = info + "(" + varname + ", " + funcname + ", " + allocloc + ")";
 			const int hash = hasher(info_str);
-			const int funchash = hasher(funcname);
+			const int funchash = hasher(funcname + ":" + varname);
 
 			// WARNING (FIXME): Possible loss of data if the same address is used
 			// for different vars after freeing
@@ -96,7 +96,7 @@ namespace /*variables information*/ {
 			
 			std::string& function = _FUNC[funchash];
 			if (function.empty())
-				function = funcname;
+				function = funcname + ":" + varname;
 
 			const short access_type = ("read" == type) ? READ_TYPE : WRITE_TYPE;
 
@@ -160,20 +160,39 @@ namespace /*variables information*/ {
 		}
 
 		void write_functions(jsonfile& where, const int num) const {
-			if (empty())
+			const std::string& stringnum = std::to_string(num);
+
+			// Fake records for ranges with little sharing
+			if (empty()) {
+				where.start_collection();
+				where.write_to_collection("num", stringnum);
+				where.write_to_collection("max", 0);
+				where.write_to_collection("func", "");
+				where.write_to_collection("refs", 0);
+				where.end_collection();
 				return;
+			}
 			
 			const std::string& maxwrites = std::to_string(max_writes());
-			const std::string& stringnum = std::to_string(num);
+			bool written = false;
 			for (auto i : _FUNC_REFS) {
 				if (MIN_REF_THRESHOLD > i.second)
 					continue;
-
+				written = true;
 				where.start_collection();
 				where.write_to_collection("num", stringnum);
 				where.write_to_collection("max", maxwrites);
 				where.write_to_collection("func", _FUNC[i.first]);
 				where.write_to_collection("refs", std::to_string(i.second));
+				where.end_collection();
+			}
+
+			if (!written) {
+				where.start_collection();
+				where.write_to_collection("num", stringnum);
+				where.write_to_collection("max", "0");
+				where.write_to_collection("func", "");
+				where.write_to_collection("refs", "0");
 				where.end_collection();
 			}
 		}
@@ -260,7 +279,7 @@ int main(int argc, char *argv[]) {
 			while (reader.readline(line)) {
 
 				if (0 != idx && 0 == idx % SAMPLES_NUM) {
-					printf("\rMAX=%d\n", MY_REFS.max_writes());
+					printf("\r#%d MAX_metric=%d\n", int(idx / SAMPLES_NUM), MY_REFS.max_writes());
 
 					MY_REFS.dump(i.second + '/' + std::to_string(int(idx / SAMPLES_NUM)) + ".json");
 					MY_REFS.write_functions(json, int(idx / SAMPLES_NUM));

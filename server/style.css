@@ -7,6 +7,14 @@ line {
   stroke: #fff;
 }
 
+.row text {
+  fill: black;
+}
+
+text.highlighted {
+  font-weight: bold;
+}
+
 .btn {
   -webkit-border-radius: 10;
   -moz-border-radius: 10;
@@ -36,25 +44,41 @@ h1, h3 {
   font-size: 80%;
 }
 
-.circle {
-  opacity: 0.0;
-  width: 100px;
-  height: 100px;
-  border-radius: 50px;
-  -webkit-box-sizing: border-box;
-  border: solid 25px rgba(255, 255, 255, 0.2);
-  border-top-color: #FFF;
-  -webkit-animation: spin 1s infinite linear;
+
+.meter { 
+  opacity: 0.5;
+  width: 600px;
+  height: 20px;
+  position: relative;
+  background: #555;
+  -moz-border-radius: 15px;
+  -webkit-border-radius: 15px;
+  border-radius: 15px;
+  padding: 3px;
+  -webkit-box-shadow: inset 0 -1px 1px rgba(255,255,255,0.3);
+  -moz-box-shadow   : inset 0 -1px 1px rgba(255,255,255,0.3);
+  box-shadow        : inset 0 -1px 1px rgba(255,255,255,0.3);
 }
 
-.circle:hover {
-  opacity: 1.0;
-}
-
-@-webkit-keyframes spin { 
-  100% { 
-    -webkit-transform: rotate(360deg); 
-  } 
+.meter > span {
+  display: block;
+  height: 100%;
+     -webkit-border-top-right-radius: 8px;
+  -webkit-border-bottom-right-radius: 8px;
+         -moz-border-radius-topright: 8px;
+      -moz-border-radius-bottomright: 8px;
+             border-top-right-radius: 8px;
+          border-bottom-right-radius: 8px;
+      -webkit-border-top-left-radius: 20px;
+   -webkit-border-bottom-left-radius: 20px;
+          -moz-border-radius-topleft: 20px;
+       -moz-border-radius-bottomleft: 20px;
+              border-top-left-radius: 20px;
+           border-bottom-left-radius: 20px;
+  background-color: #FFA465;
+ 
+  position: relative;
+  overflow: hidden;
 }
 
 

@@ -36,7 +36,7 @@ var show_uber_table = function(results) {
 			//"paging": false,
     		"data": results,
     		"columns": [
-    			{ "title": "#" },
+    			{ "title": "Group #" },
     			{ "title": "Address" },
      			{ "title": "Sharing Intensity*, KPMI" },
      			{ "title": "Function" },
@@ -51,15 +51,22 @@ var show_uber_table = function(results) {
 
 var results = [];
 var remainingFiles = 0;
+var allFiles = 0;
 
 function callback(details, funcname, num) {
 	details = details.filter(function(d) {
 	for(var i = 0; i < threads; i++) {
 		var field = "inf" + i;
-		if (d[field].indexOf(funcname) != -1)
+		var parts = funcname.split(/:/);
+		var field_parts = d[field].split(/,|\(|\)/);
+
+		if (parts.length == 1 && field_parts[1] == funcname)
 			return true;
-		}
-		return false;
+		
+		if (parts.length == 2 && field_parts[1] == parts[1] && field_parts[2].substring(1) == parts[0])
+			return true;
+	}	
+	return false;
 	})
 
 	details.forEach(function(line) {
@@ -82,13 +89,20 @@ function callback(details, funcname, num) {
 
 	remainingFiles--;
 	
-	if (remainingFiles == 0)
+	d3.select(".meter").selectAll('span').remove();
+	d3.select(".meter").append('span').style("width", function() { return (100 * (allFiles - remainingFiles) / allFiles) + "%"; })
+		.text("  Loading data...");
+
+	if (remainingFiles == 0) {
+		d3.select(".meter").remove();
 		show_uber_table(results);
+	}
 }
 
 function function_details(subfile) {
 	results = [];
 	remainingFiles = subfile.length;
+	allFiles = remainingFiles;
 	d3.selectAll(".details_view").remove();
 	var details;
 
@@ -134,6 +148,7 @@ d3.json("data/main.json", function(error, table) {
 	// {"file": "sharing-mystery1-new json","ver": "0 2 0 0","threadnum": "29"}
 	threads = +table[0].threadnum;
 	var pfile = table[0].file;
+	var vers = table[0].ver;
 	table.shift(); // remove the first line
 
 	var new_threshold = parseSecond("threshold");
@@ -142,21 +157,25 @@ d3.json("data/main.json", function(error, table) {
 	else
 		location.href = "index.html?threshold=" + threshold;
 
-	table = table.filter(function(d){ return +d.refs > threshold; })
+	filtered_table = table.filter(function(d){ return +d.refs > threshold; })
 
-	table.forEach(function(line) {
+	filtered_table.forEach(function(line) {
 		if (bfunctions[line.func] == undefined) {
 			bfunctions[line.func] = fcount;
 			fcount++;
 			functions[functions.length] = line.func;
 		}
+
+		if (+line.refs > +max_sharing)
+			max_sharing = +line.refs;
+	});
+
+	table.forEach(function(line) {
 		if (btimes[line.num] == undefined) {
 			btimes[line.num] = tcount;
 			tcount++;
 			times[times.length] = line.num;
 		}
-		if (+line.refs > +max_sharing)
-			max_sharing = +line.refs;
 	});
 
 	var margin = {top: 30, right: 0, bottom: 0, left: 80},
@@ -210,15 +229,44 @@ d3.json("data/main.json", function(error, table) {
 		.attr("dy", ".32em")
 		.attr("text-anchor", "end")
 		.text(function(d, i) {
-			return functions[i].substring(0, 20);
+			var parts = functions[i].split(/:/);
+			return parts[0].substring(0, 20);
 		});
 
+	// ===================== VAR NAMES panel =========================
+
+	var varpan = d3.select("#varnames").append("svg")
+    	.attr("width", 100)
+    	.attr("height", height + margin.top + margin.bottom)
+    	.append("svg:g")
+    	.attr("transform", function() {
+    		var x = 0;
+    		return "translate(" + x + ", " + margin.top + ")"; 
+    	});
+
+	var varrows = varpan.selectAll(".rowv")
+		.data(functions)
+    	.enter().append("g")
+      		.attr("class", "rowv")
+      		.attr("transform", function(d, i) { return "translate(0," + ((i + 1) * txt.ysize) + ")"; });
+
+  	varrows.append("text")
+		.attr("x", 0)
+		.attr("y", function(d, i) { return -txt.ysize / 2; })
+		.attr("dy", ".32em")
+		.attr("text-anchor", "start")
+		.text(function(d, i) {
+			var parts = functions[i].split(/:/);
+			if (1 == parts.length)
+				return ""; 
+			return ":" + parts[1].substring(0, 10);
+		});
 
 	// ===================== FILE line =================================
 
 
-    d3.select("#file").text(function() {
-    	return "File: " + pfile.replace(/#/g, '.').replace(/@/g, '/');
+    d3.select("#file").html(function() {
+    	return "File: " + pfile.replace(/#/g, '.').replace(/@/g, '/') + "<br>" + "Version: " + vers.replace(/ /g, ".");
     });
 
     // ====================== MAIN central panel =======================
@@ -250,7 +298,7 @@ d3.json("data/main.json", function(error, table) {
 
     var filesandfunctions = [];
 
-	table.forEach(function(line) {
+	filtered_table.forEach(function(line) {
 
 		var cell = svg.append("rect")
 			.datum(line)
@@ -276,9 +324,24 @@ d3.json("data/main.json", function(error, table) {
        				.style("fill", "none");
 
        		})
-		    .on("mouseover", function() { d3.select(this).style("stroke", "#4A0D3F").style("stroke-width", 3);  })
-		    .on("mouseout", function() { d3.select(this).style("stroke", "none"); })
-		filesandfunctions[filesandfunctions.length] = ["data/" + line.num + ".json", line.func, line.num];
+		    .on("mouseover", function(p) {
+		    	d3.select(this).style("stroke", "#4A0D3F").style("stroke-width", 2);
+		    	var rows = d3.selectAll(".row text");
+		    	var y_p = +bfunctions[p.func];
+		    	var x_p = +btimes[p.num];
+		    	d3.selectAll(".rowv text").classed("highlighted", function(d, i) { return i == y_p; });
+		    	d3.selectAll(".row text").classed("highlighted", function(d, i) { return i == y_p; });
+		    	d3.selectAll(".column text").classed("highlighted", function(d, i) { return i == x_p; });
+		    })
+		    .on("mouseout", function() {
+		    	d3.select(this).style("stroke", "none");
+		    	d3.selectAll(".rowv text").classed("highlighted", false);
+		    	d3.selectAll(".row text").classed("highlighted", false);
+		    	d3.selectAll(".column text").classed("highlighted", false);		    	
+		    })
+
+		if (+line.refs > threshold)
+			filesandfunctions[filesandfunctions.length] = ["data/" + line.num + ".json", line.func, line.num];
 	});
 	function_details(filesandfunctions);
 });
