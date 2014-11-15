@@ -2,6 +2,9 @@
 #include <Windows.h>
 #else
 #include <memory.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #endif
 
 #include <math.h>
@@ -233,8 +236,8 @@ int main(int argc, char *argv[]) {
 
 	if (argc != 3 && argc != 2) {
 		printf("Usage: analyzer <trace_file> [destination_folder]\n"
-			"(trace_file - a file containing a memory trace in a specific format,\n"
-			"destination_folder - folder name where to put the processed files)\n");
+			"\n*trace_file - a file containing a memory trace in a specific format,\n"
+			"*destination_folder - folder name where to put the processed files.\n");
 		return 0;
 	}
 
@@ -256,6 +259,13 @@ int main(int argc, char *argv[]) {
 		SHFileOperationA(&sh);
 
 		CreateDirectoryA((LPCSTR)i.second.c_str(), NULL);
+#else // _WIN32
+		rmdir(i.second.c_str());
+		if (int er = mkdir(i.second.c_str(), 0777)) {
+			printf("Cannot create a data dir %s (error: %s)\n", i.second.c_str(), strerror(er));
+			return 0;
+		}
+
 #endif // _WIN32
 		MY_REFS.reset();
 
