@@ -58,13 +58,16 @@ function callback(details, funcname, num) {
 	for(var i = 0; i < threads; i++) {
 		var field = "inf" + i;
 		var parts = funcname.split(/:/);
-		var field_parts = d[field].split(/,|\(|\)/);
 
-		if (parts.length == 1 && field_parts[1] == funcname)
-			return true;
+		if (d[field] != undefined) {
+			var field_parts = d[field].split(/,|\(|\)/);
+
+			if (parts.length == 1 && field_parts[1] == funcname)
+				return true;
 		
-		if (parts.length == 2 && field_parts[1] == parts[1] && field_parts[2].substring(1) == parts[0])
-			return true;
+			if (parts.length == 2 && field_parts[1] == parts[1] && field_parts[2].substring(1) == parts[0])
+				return true;
+		}
 	}	
 	return false;
 	})
@@ -75,7 +78,7 @@ function callback(details, funcname, num) {
 		for(var i = 0; i < threads; i++) {
 			var infN = "inf" + i;
 			var refN = "ref" + i;
-			if (line[refN] != "0") {
+			if (line[refN] != undefined && line[refN] != "0") {
 				var info = line[infN];
 				parts = info.split(/,|\(|\)/);
 				sum += +line[refN];
@@ -127,6 +130,17 @@ function parseSecond(val) {
     return result;
 }
 
+d3.json("data/info.json", function(error, info) {
+	// {"file": "sharing-mystery1-new json","ver": "0 2 0 0","threadnum": "29"}
+	threads = +info[0].threadnum;
+	var pfile = info[0].file;
+	var vers = info[0].ver;
+
+	// ===================== FILE line =================================
+    d3.select("#file").html(function() {
+    	return "File: " + pfile.replace(/#/g, '.').replace(/@/g, '/') + "<br>" + "Version: " + vers.replace(/ /g, ".");
+    });
+})
 
 var invalidate = function() {
 
@@ -145,11 +159,7 @@ d3.json("data/main.json", function(error, table) {
 
 	var threshold = 400;
 
-	// {"file": "sharing-mystery1-new json","ver": "0 2 0 0","threadnum": "29"}
-	threads = +table[0].threadnum;
-	var pfile = table[0].file;
-	var vers = table[0].ver;
-	table.shift(); // remove the first line
+//	table.shift(); // remove the first line
 
 	var new_threshold = parseSecond("threshold");
 	if (new_threshold != undefined)
@@ -262,13 +272,6 @@ d3.json("data/main.json", function(error, table) {
 			return ":" + parts[1].substring(0, 10);
 		});
 
-	// ===================== FILE line =================================
-
-
-    d3.select("#file").html(function() {
-    	return "File: " + pfile.replace(/#/g, '.').replace(/@/g, '/') + "<br>" + "Version: " + vers.replace(/ /g, ".");
-    });
-
     // ====================== MAIN central panel =======================
 
 	var row = svg.selectAll(".row")
@@ -322,6 +325,15 @@ d3.json("data/main.json", function(error, table) {
        				.style("stroke", "black")
        				.style("stroke-width", 3)
        				.style("fill", "none");
+
+       			// @#$@#$@#$
+       			/*
+       			svg.append("text")
+       				.datum(d)
+       				.attr("x", function(d) { return +txt.xsize * +btimes[d.num] + 7; })
+        			.attr("y", function(d) { return +txt.ysize * +bfunctions[d.func] + 15; })
+        			.text("9");
+        		*/
 
        		})
 		    .on("mouseover", function(p) {

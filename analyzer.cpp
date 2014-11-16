@@ -26,7 +26,8 @@
 #define ONE_PERCENT		(SAMPLES_NUM / 100)
 
 //#define THREADS_NUM		7
-#define THREADS_NUM		29
+//#define THREADS_NUM		29
+static unsigned MY_THREADS_NUM	= 0;
 
 #define MB	(1 << 20)
 
@@ -35,7 +36,7 @@
 // /O2	-- 497s
 
 
-const static char* REPORT_VER = "0 3 0 0";
+const static char* REPORT_VER = "0 4 0 0";
 
 
 namespace /*memory regions information*/ {
@@ -65,7 +66,7 @@ namespace /*variables information*/ {
 				json.start_collection();
 				json.write_to_collection("addr", std::to_string(e.first));
 				json.write_to_collection("refs", std::to_string(e.second._refs));
-				for (unsigned k = 0; k < THREADS_NUM; ++k) {
+				for (unsigned k = 0; k < e.second._hash_info.size(); ++k) {
 					int hash = e.second._hash_info[k];
 					json.write_to_collection(std::string("inf") + std::to_string(k), hash ? _INFO[hash] : "");
 					json.write_to_collection(std::string("ref") + std::to_string(k), std::to_string(e.second._thr_refs[k]));
@@ -81,11 +82,12 @@ namespace /*variables information*/ {
 			const std::string& funcname,
 			const std::string& allocloc)				// alloc-location
 		{
-			if (threadid >= THREADS_NUM || threadid < 0) {
+/*			if (threadid >= THREADS_NUM || threadid < 0) {
 				printf("ERROR: unexpected thread id (set THREAD_NUM at least to %d)\n", threadid + 1);
 				assert(false && "ThreadId has unexpected value");
 				return;
 			}
+*/
 			const std::string info_str = info + "(" + varname + ", " + funcname + ", " + allocloc + ")";
 			const int hash = hasher(info_str);
 			const int funchash = hasher(funcname + ":" + varname);
@@ -107,11 +109,15 @@ namespace /*variables information*/ {
 				// (Other thread wrote to this address)
 				addr_info_t& addrinfo = _CACHELINE_LOADS.at(addr / 64);
 
-				if (WRITE_TYPE == access_type)
-					memset(addrinfo._updated, 0x0, sizeof(addrinfo._updated));
+				if (WRITE_TYPE == access_type && !addrinfo._updated.empty())
+					memset(&addrinfo._updated[0], 0x0, addrinfo._updated.size());
 
 				// (!) This is the core part: calculating metric that represents
 				// the extent of sharing.
+
+				if (addrinfo._updated.size() <= unsigned(threadid)) {
+					addrinfo.resize(threadid + 1);
+				}
 
 				if (addrinfo._lastthread != threadid) {
 					++addrinfo._thr_refs[threadid];
@@ -137,6 +143,9 @@ namespace /*variables information*/ {
 			catch (const std::out_of_range&) {
 				// (First write to the address)
 				addr_info_t& addrinfo = _CACHELINE_LOADS[addr / 64];
+
+				addrinfo.resize(threadid + 1);
+
 				addrinfo._lastthread = threadid;
 				addrinfo._hash_info[threadid] = hash;
 
@@ -150,12 +159,16 @@ namespace /*variables information*/ {
 		void single_address_ref(const ull_t addr, const int threadid, const int hash) {
 			try {
 				addr_info_t& addrinfo = _REFS.at(addr);
+
+				if (addrinfo._updated.size() <= unsigned(threadid))
+					addrinfo.resize(threadid + 1);
 				++addrinfo._thr_refs[threadid];
 				addrinfo._hash_info[threadid] = hash;
 				++addrinfo._refs;
 			}
 			catch (const std::out_of_range&) {
 				addr_info_t& addrinfo = _REFS[addr];
+				addrinfo.resize(threadid + 1);
 				addrinfo._lastthread = threadid;
 				addrinfo._hash_info[threadid] = hash;
 			}
@@ -164,15 +177,18 @@ namespace /*variables information*/ {
 
 		void write_functions(jsonfile& where, const int num) const {
 			const std::string& stringnum = std::to_string(num);
+			auto write_zeroes = [](jsonfile& where, const std::string& stringnum) {
+				where.start_collection();
+				where.write_to_collection("num", stringnum);
+				where.write_to_collection("max", "0");
+				where.write_to_collection("func", "");
+				where.write_to_collection("refs", "0");
+				where.end_collection();
+			};
 
 			// Fake records for ranges with little sharing
 			if (empty()) {
-				where.start_collection();
-				where.write_to_collection("num", stringnum);
-				where.write_to_collection("max", 0);
-				where.write_to_collection("func", "");
-				where.write_to_collection("refs", 0);
-				where.end_collection();
+				write_zeroes(where, stringnum);
 				return;
 			}
 			
@@ -191,12 +207,7 @@ namespace /*variables information*/ {
 			}
 
 			if (!written) {
-				where.start_collection();
-				where.write_to_collection("num", stringnum);
-				where.write_to_collection("max", "0");
-				where.write_to_collection("func", "");
-				where.write_to_collection("refs", "0");
-				where.end_collection();
+				write_zeroes(where, stringnum);
 			}
 		}
 
@@ -208,16 +219,23 @@ namespace /*variables information*/ {
 			WRITE_TYPE
 		};
 		struct addr_info_t {				// describes a cache line
+			void resize(size_t threads_count) {
+				_updated.resize(threads_count);
+				_thr_refs.resize(threads_count);
+				_hash_info.resize(threads_count);
+				if (MY_THREADS_NUM < threads_count)
+					MY_THREADS_NUM = threads_count;
+			}
 			addr_info_t() : _lastthread(-1), _refs(0) {
-				memset(_hash_info, 0x0, sizeof(_hash_info));
-				memset(_thr_refs, 0x0, sizeof(_thr_refs));
-				memset(_updated, 0x0, sizeof(_updated));
+				//memset(_hash_info, 0x0, sizeof(_hash_info));
+				//memset(_thr_refs, 0x0, sizeof(_thr_refs));
+				//memset(_updated, 0x0, sizeof(_updated));
 			}
 			short _lastthread;				// the last thread that wrote/read
-			char _updated[THREADS_NUM];		// CL has been read
+			std::vector<char> _updated;		// CL has been read
 			int _refs;						// all references to the CL
-			int _hash_info[THREADS_NUM];	// how each thread "call" variable in the CL (FIXME: many vars in CL!)
-			int _thr_refs[THREADS_NUM];		// number of re-writes per thread
+			std::vector<int> _hash_info;	// how each thread "call" variable in the CL
+			std::vector<int> _thr_refs;		// number of re-writes per thread
 			//char __padding[64 - (sizeof(__int32)*(2*THREADS_NUM + 2) % 64)];
 		};
 		std::map/*(addr, threadid)*/<ull_t, addr_info_t> _REFS;
@@ -275,17 +293,6 @@ int main(int argc, char *argv[]) {
 		{
 			jsonfile json(i.second + "/main.json");
 
-			json.start_collection();
-			std::string fname = i.first;
-			std::replace(fname.begin(), fname.end(), '.', '#');
-			std::replace(fname.begin(), fname.end(), '\\', '@');
-			std::replace(fname.begin(), fname.end(), '/', '@');
-
-			json.write_to_collection("file", fname);
-			json.write_to_collection("ver", REPORT_VER);
-			json.write_to_collection("threadnum", std::to_string(THREADS_NUM));
-			json.end_collection();
-
 			while (reader.readline(line)) {
 
 				if (0 != idx && 0 == idx % SAMPLES_NUM) {
@@ -306,6 +313,18 @@ int main(int argc, char *argv[]) {
 				MY_REFS.ref(tid, addr, line.get("source-location"),
 					line.get("var-name"), line.get("type"), line.get("function"), line.get("alloc-location"));
 			}
+
+			jsonfile info(i.second + "/info.json");
+			info.start_collection();
+			std::string fname = i.first;
+			std::replace(fname.begin(), fname.end(), '.', '#');
+			std::replace(fname.begin(), fname.end(), '\\', '@');
+			std::replace(fname.begin(), fname.end(), '/', '@');
+
+			info.write_to_collection("file", fname);
+			info.write_to_collection("ver", REPORT_VER);
+			info.write_to_collection("threadnum", std::to_string(MY_THREADS_NUM));
+			info.end_collection();
 		}
 	//}
 	timer.stop("ELAPSED");
