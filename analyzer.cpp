@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#include <iostream>
 #include <functional>
 #include <algorithm>
 #include "stopwatch.h"
@@ -271,85 +272,113 @@ namespace /*variables information*/ {
 }
 
 
+void processingBody(const std::string& out_data, std::istream& injson, const std::string& in_file = std::string()) {
+
+	swatch timer;
+
+#ifdef _WIN32
+	SHFILEOPSTRUCTA sh = { 0, FO_DELETE, out_data.c_str(), NULL,
+		FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION,
+		FALSE, NULL, NULL };
+	SHFileOperationA(&sh);
+
+	CreateDirectoryA((LPCSTR)out_data.c_str(), NULL);
+#else // _WIN32
+	rmdir(out_data.c_str());
+	if (int er = mkdir(out_data.c_str(), 0777)) {
+		printf("Cannot create a data dir %s (error: %s)\n", out_data.c_str(), strerror(er));
+		return 0;
+	}
+
+#endif // _WIN32
+	MY_REFS.reset();
+
+	jsonreader reader(injson);
+	jsonreader::line_t line;
+	int idx = 0;
+	{
+		jsonfile json(out_data + "/main.json");
+
+		while (reader.readline(line)) {
+			const std::string &saddr = line.get("address");
+			const std::string &stid = line.get("thread-id");
+			if (saddr.empty() || stid.empty())
+				continue;
+
+			if (0 != idx && 0 == idx % SAMPLES_NUM) {
+				printf("\r#%d MAX_metric=%d\n", int(idx / SAMPLES_NUM), MY_REFS.max_writes());
+
+				MY_REFS.dump(out_data + '/' + std::to_string(int(idx / SAMPLES_NUM)) + ".json");
+				MY_REFS.write_functions(json, int(idx / SAMPLES_NUM));
+				MY_REFS.reset();
+			}
+			++idx;
+
+			ull_t addr = std::stoull(saddr, 0, 16);
+			int tid = std::stoi(stid);
+
+			MY_REFS.ref(tid, addr, line.get("source-location"),
+				line.get("var-name"), line.get("type"), line.get("function"), line.get("alloc-location"));
+		}
+
+		jsonfile info(out_data + "/info.json");
+		info.start_collection();
+
+		// TODO FIXME XXX: get a trace name from the trace file (???)
+		
+		std::string fname = in_file;
+		std::replace(fname.begin(), fname.end(), '.', '#');
+		std::replace(fname.begin(), fname.end(), '\\', '@');
+		std::replace(fname.begin(), fname.end(), '/', '@');
+
+		info.write_to_collection("file", fname);
+		info.write_to_collection("ver", REPORT_VER);
+		info.write_to_collection("threadnum", std::to_string(MY_THREADS_NUM));
+		info.end_collection();
+	}
+
+	timer.stop("ELAPSED");
+	return;
+}
+
 int main(int argc, char *argv[]) {
 
-	if (argc != 3 && argc != 2) {
-		printf("Usage: analyzer <trace_file> [destination_folder]\n"
+	printf("%s, Nik Zaborovsky [nzaborov@sfu.ca], Oct-Nov, 2014\n\n", argv[0]);
+
+	switch (argc) {
+	case 1:
+		printf("Running in reading-stdin mode... (writing in \"server\\data\" folder)\n");
+		break;
+	case 2:
+		printf("Running in reading-file mode... (writing in \"server\\data\" folder)\n");
+		break;
+	case 3:
+		printf("Running in reading-file mode... (writing in \"server\\%s\" folder)\n", argv[2]);
+		break;
+	default:
+		printf("Usage:\n"
+			"\t analyzer <trace_file> [destination_folder]\n"
+			"\t analyzer - reads stdin\n"
 			"\n*trace_file - a file containing a memory trace in a specific format,\n"
 			"*destination_folder - folder name where to put the processed files.\n");
 		return 0;
 	}
 
-	struct {
-		std::string first;
-		std::string second;
-	} i = { argv[1], argc == 2 ? "data" : argv[2] };
-
-	i.second = "server/" + i.second;
-
-	swatch timer;
-
-	//std::vector<std::pair<std::string, std::string>> inout_files;
-	//for (auto i : inout_files) {
-#ifdef _WIN32
-		SHFILEOPSTRUCTA sh = { 0, FO_DELETE, i.second.c_str(), NULL,
-			FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION,
-			FALSE, NULL, NULL };
-		SHFileOperationA(&sh);
-
-		CreateDirectoryA((LPCSTR)i.second.c_str(), NULL);
-#else // _WIN32
-		rmdir(i.second.c_str());
-		if (int er = mkdir(i.second.c_str(), 0777)) {
-			printf("Cannot create a data dir %s (error: %s)\n", i.second.c_str(), strerror(er));
+	if (argc > 1) {
+		std::ifstream injson;
+		injson.open(argv[1]);
+		if (!injson.is_open()) {
+			printf("Cannot create/open file %s\n", argv[1]);
+			assert(false && "No input file found..\n");
 			return 0;
 		}
+		processingBody("server/" + std::string(argc == 2 ? "data" : argv[2]), injson, argv[1]);
+		injson.close();
+	}
+	else { // argc == 1
+		processingBody("server/data", std::cin);
+	}
 
-#endif // _WIN32
-		MY_REFS.reset();
-
-		jsonreader reader(i.first.c_str());
-		jsonreader::line_t line;
-		int idx = 0;
-		{
-			jsonfile json(i.second + "/main.json");
-
-			while (reader.readline(line)) {
-				const std::string &saddr = line.get("address");
-				const std::string &stid = line.get("thread-id");
-				if (saddr.empty() || stid.empty())
-					continue;
-
-				if (0 != idx && 0 == idx % SAMPLES_NUM) {
-					printf("\r#%d MAX_metric=%d\n", int(idx / SAMPLES_NUM), MY_REFS.max_writes());
-
-					MY_REFS.dump(i.second + '/' + std::to_string(int(idx / SAMPLES_NUM)) + ".json");
-					MY_REFS.write_functions(json, int(idx / SAMPLES_NUM));
-					MY_REFS.reset();
-				}
-				++idx;
-
-				ull_t addr = std::stoull(saddr, 0, 16);
-				int tid = std::stoi(stid);
-
-				MY_REFS.ref(tid, addr, line.get("source-location"),
-					line.get("var-name"), line.get("type"), line.get("function"), line.get("alloc-location"));
-			}
-
-			jsonfile info(i.second + "/info.json");
-			info.start_collection();
-			std::string fname = i.first;
-			std::replace(fname.begin(), fname.end(), '.', '#');
-			std::replace(fname.begin(), fname.end(), '\\', '@');
-			std::replace(fname.begin(), fname.end(), '/', '@');
-
-			info.write_to_collection("file", fname);
-			info.write_to_collection("ver", REPORT_VER);
-			info.write_to_collection("threadnum", std::to_string(MY_THREADS_NUM));
-			info.end_collection();
-		}
-	//}
-	timer.stop("ELAPSED");
 	getchar();
 	return 1;
 }

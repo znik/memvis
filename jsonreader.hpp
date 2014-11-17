@@ -31,22 +31,11 @@ struct jsonreader {
 		friend struct jsonreader;
 	};
 
-	jsonreader(const std::string& path) : _ok(false) {
-		_json.open(path.c_str());
-		if (!_json.is_open()) {
-			printf("[JSONREADER] Cannot create/open file %s\n", path.c_str());
-			assert(false && "No input file found..\n");
-		}
-		else {
-			_ok = true;
-		}
-	}
+	jsonreader(std::istream &istream) : _json(istream) {};
 
 	bool readline(line_t &line_rep) {
 		std::string line;
 		line_rep._dict.clear();
-		if (!_ok)
-			return false;
 		std::getline(_json, line);
 		if (line.empty())
 			return false;
@@ -70,10 +59,7 @@ struct jsonreader {
 	}
 
 	~jsonreader() {
-		if (_ok)
-			_json.close();
 	}
 private:
-	std::ifstream _json;
-	bool _ok;
+	std::istream& _json;
 };
