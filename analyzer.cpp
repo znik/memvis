@@ -56,10 +56,17 @@ namespace /*variables information*/ {
 
 	struct {
 		void dump(const std::string& filename) const {
-			if (0 == MAX_WRITES)
+			bool em = true;
+			for (auto e : _REFS) {
+				if (MIN_REF_THRESHOLD <= e.second._refs)
+					em = false;
+			}
+			if (em)
 				return;
+
 			jsonfile json(filename);
 			for (auto e : _REFS) {
+				
 				if (MIN_REF_THRESHOLD > e.second._refs)
 					continue;
 
@@ -90,7 +97,7 @@ namespace /*variables information*/ {
 */
 			const std::string info_str = info + "(" + varname + ", " + funcname + ", " + allocloc + ")";
 			const int hash = hasher(info_str);
-			const int funchash = hasher(funcname + ":" + varname);
+			const int funchash = hasher(funcname + ":" + varname + ":" + std::to_string(addr / 64));
 
 			// WARNING (FIXME): Possible loss of data if the same address is used
 			// for different vars after freeing
@@ -101,7 +108,7 @@ namespace /*variables information*/ {
 			
 			std::string& function = _FUNC[funchash];
 			if (function.empty())
-				function = funcname + ":" + varname;
+				function = funcname + ":" + varname + ":" + std::to_string(addr / 64);
 
 			const short access_type = ("read" == type) ? READ_TYPE : WRITE_TYPE;
 
@@ -187,7 +194,7 @@ namespace /*variables information*/ {
 			};
 
 			// Fake records for ranges with little sharing
-			if (empty()) {
+			if (0 == _FUNC_REFS.size()) {
 				write_zeroes(where, stringnum);
 				return;
 			}
@@ -294,6 +301,10 @@ int main(int argc, char *argv[]) {
 			jsonfile json(i.second + "/main.json");
 
 			while (reader.readline(line)) {
+				const std::string &saddr = line.get("address");
+				const std::string &stid = line.get("thread-id");
+				if (saddr.empty() || stid.empty())
+					continue;
 
 				if (0 != idx && 0 == idx % SAMPLES_NUM) {
 					printf("\r#%d MAX_metric=%d\n", int(idx / SAMPLES_NUM), MY_REFS.max_writes());
@@ -303,10 +314,7 @@ int main(int argc, char *argv[]) {
 					MY_REFS.reset();
 				}
 				++idx;
-				const std::string &saddr = line.get("address");
-				const std::string &stid = line.get("thread-id");
-				if (saddr.empty() || stid.empty())
-					continue;
+
 				ull_t addr = std::stoull(saddr, 0, 16);
 				int tid = std::stoi(stid);
 

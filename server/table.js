@@ -65,7 +65,7 @@ function callback(details, funcname, num) {
 			if (parts.length == 1 && field_parts[1] == funcname)
 				return true;
 		
-			if (parts.length == 2 && field_parts[1] == parts[1] && field_parts[2].substring(1) == parts[0])
+			if (parts.length >= 2 && field_parts[1] == parts[1] && field_parts[2].substring(1) == parts[0])
 				return true;
 		}
 	}	
