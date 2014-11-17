@@ -326,15 +326,6 @@ d3.json("data/main.json", function(error, table) {
        				.style("stroke-width", 3)
        				.style("fill", "none");
 
-       			// @#$@#$@#$
-       			/*
-       			svg.append("text")
-       				.datum(d)
-       				.attr("x", function(d) { return +txt.xsize * +btimes[d.num] + 7; })
-        			.attr("y", function(d) { return +txt.ysize * +bfunctions[d.func] + 15; })
-        			.text("9");
-        		*/
-
        		})
 		    .on("mouseover", function(p) {
 		    	d3.select(this).style("stroke", "#4A0D3F").style("stroke-width", 2);
@@ -351,6 +342,15 @@ d3.json("data/main.json", function(error, table) {
 		    	d3.selectAll(".row text").classed("highlighted", false);
 		    	d3.selectAll(".column text").classed("highlighted", false);		    	
 		    })
+
+		    if (line.fals > 100) {
+       			svg.append("text")
+       				.datum(line)
+       				.attr("x", function(d) { return +txt.xsize * +btimes[d.num] + 7; })
+        			.attr("y", function(d) { return +txt.ysize * +bfunctions[d.func] + 15; })
+        			.text(".");
+        	}
+
 
 		if (+line.refs > threshold)
 			filesandfunctions[filesandfunctions.length] = ["data/" + line.num + ".json", line.func, line.num];

@@ -81,7 +81,9 @@ namespace /*variables information*/ {
 				json.end_collection();
 			}
 		}
-		void reset() { _REFS.clear(); _INFO.clear(); _CACHELINE_LOADS.clear(); MAX_WRITES = 0; _FUNC.clear(); _FUNC_REFS.clear(); };
+		void reset() { _REFS.clear(); _INFO.clear(); _CACHELINE_LOADS.clear(); MAX_WRITES = 0; _FUNC.clear(); _FUNC_REFS.clear();
+			_FUNC_FALSESHARES.clear();
+		};
 		void ref(const int threadid, const ull_t addr,
 			const std::string& info,					// src-location
 			const std::string& varname,
@@ -140,6 +142,12 @@ namespace /*variables information*/ {
 						// occured in each function context.
 						++_FUNC_REFS[funchash];
 
+						// FALSE SHARING SECTION {
+						if (addrinfo._lastaddr != addr && 0 != addrinfo._lastaddr)
+							++_FUNC_FALSESHARES[funchash];
+						addrinfo._lastaddr = addr;
+						// }
+
 						if (addrinfo._refs > MAX_WRITES)
 							MAX_WRITES = addrinfo._refs;
 					}
@@ -155,6 +163,8 @@ namespace /*variables information*/ {
 
 				addrinfo._lastthread = threadid;
 				addrinfo._hash_info[threadid] = hash;
+
+				addrinfo._lastaddr = addr;
 
 				single_address_ref(addr, threadid, hash);
 
@@ -190,6 +200,7 @@ namespace /*variables information*/ {
 				where.write_to_collection("max", "0");
 				where.write_to_collection("func", "");
 				where.write_to_collection("refs", "0");
+				where.write_to_collection("fals", "0");
 				where.end_collection();
 			};
 
@@ -210,6 +221,7 @@ namespace /*variables information*/ {
 				where.write_to_collection("max", maxwrites);
 				where.write_to_collection("func", _FUNC[i.first]);
 				where.write_to_collection("refs", std::to_string(i.second));
+				where.write_to_collection("fals", std::to_string(_FUNC_FALSESHARES[i.first]));
 				where.end_collection();
 			}
 
@@ -233,12 +245,13 @@ namespace /*variables information*/ {
 				if (MY_THREADS_NUM < threads_count)
 					MY_THREADS_NUM = threads_count;
 			}
-			addr_info_t() : _lastthread(-1), _refs(0) {
+			addr_info_t() : _lastthread(-1), _lastaddr(0), _refs(0) {
 				//memset(_hash_info, 0x0, sizeof(_hash_info));
 				//memset(_thr_refs, 0x0, sizeof(_thr_refs));
 				//memset(_updated, 0x0, sizeof(_updated));
 			}
 			short _lastthread;				// the last thread that wrote/read
+			ull_t _lastaddr;				// the last address accessed
 			std::vector<char> _updated;		// CL has been read
 			int _refs;						// all references to the CL
 			std::vector<int> _hash_info;	// how each thread "call" variable in the CL
@@ -250,6 +263,7 @@ namespace /*variables information*/ {
 		mutable std::map/*(hash, info)*/<int, std::string> _INFO;
 
 		std::map/*(funchash, refcount)*/<int, int> _FUNC_REFS;
+		mutable std::map/*(funchash, false_shares)*/<int, int> _FUNC_FALSESHARES;
 		mutable std::map/*(hash, funcname)*/<int, std::string> _FUNC;
 
 		int MAX_WRITES;
