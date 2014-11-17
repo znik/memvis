@@ -81,4 +81,10 @@ h1, h3 {
   overflow: hidden;
 }
 
-
+select#soflow-color {
+   color: black;
+   background-color: #FFF;
+   border: 1px solid grey;
+   padding-left: 2px;
+   padding: 2px 2px;
+}

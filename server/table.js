@@ -2,7 +2,7 @@
 
 var txt = {length: 140, xsize: 20, ysize: 20};
 var threads = 29;
-
+var field = "";
 
 var show_uber_table = function(results) {
 	d3.selectAll("#demo").remove();
@@ -144,6 +144,13 @@ d3.json("data/info.json", function(error, info) {
 
 var invalidate = function() {
 
+	d3.selectAll("svg").remove();
+	var val = document.getElementById("soflow-color").value;
+	if (val == "Sharing")
+		field = "refs";
+	if (val == "False Sharing")
+		field = "fals";
+
 d3.json("data/main.json", function(error, table) {
 	// Assiging indices to functions
 	var bfunctions = new Array();
@@ -167,7 +174,7 @@ d3.json("data/main.json", function(error, table) {
 	else
 		location.href = "index.html?threshold=" + threshold;
 
-	filtered_table = table.filter(function(d){ return +d.refs > threshold; })
+	filtered_table = table.filter(function(d){ return +d[field] > threshold; })
 
 	filtered_table.forEach(function(line) {
 		if (bfunctions[line.func] == undefined) {
@@ -176,8 +183,8 @@ d3.json("data/main.json", function(error, table) {
 			functions[functions.length] = line.func;
 		}
 
-		if (+line.refs > +max_sharing)
-			max_sharing = +line.refs;
+		if (+line[field] > +max_sharing)
+			max_sharing = +line[field];
 	});
 
 	table.forEach(function(line) {
@@ -309,8 +316,13 @@ d3.json("data/main.json", function(error, table) {
         	.attr("y", function(d) { return +txt.ysize * +bfunctions[d.func] + 1; })
         	.attr("width", txt.xsize - 2)
        		.attr("height", txt.ysize - 2)
-       		.style("fill-opacity", function(d) { return 0.2 + 0.8 * d.refs / max_sharing; })
-       		.style("fill", function(d) { return "#FFA465"; })
+       		.style("fill-opacity", function(d) { return 0.2 + 0.8 * d[field] / max_sharing; })
+       		.style("fill", function(d) {
+       			if (field == "refs")
+       				return "#FFA465";
+       			if (field == "fals")
+       				return "#91234C";
+       		})
        		.attr("class", "cell")
        		.on("click", function(d) {
        			console.log("data/" + d.num + ".json");
@@ -343,16 +355,7 @@ d3.json("data/main.json", function(error, table) {
 		    	d3.selectAll(".column text").classed("highlighted", false);		    	
 		    })
 
-		    if (line.fals > 100) {
-       			svg.append("text")
-       				.datum(line)
-       				.attr("x", function(d) { return +txt.xsize * +btimes[d.num] + 7; })
-        			.attr("y", function(d) { return +txt.ysize * +bfunctions[d.func] + 15; })
-        			.text(".");
-        	}
-
-
-		if (+line.refs > threshold)
+		if (+line[field] > threshold)
 			filesandfunctions[filesandfunctions.length] = ["data/" + line.num + ".json", line.func, line.num];
 	});
 	function_details(filesandfunctions);
@@ -361,3 +364,6 @@ d3.json("data/main.json", function(error, table) {
 
 invalidate();
 
+function visualTypeChanged() {
+	invalidate();
+};
