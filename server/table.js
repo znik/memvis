@@ -53,7 +53,7 @@ var results = [];
 var remainingFiles = 0;
 var allFiles = 0;
 
-function callback(details, funcname, num) {
+function callback(details, funcname, num, metric) {
 	details = details.filter(function(d) {
 	for(var i = 0; i < threads; i++) {
 		var field = "inf" + i;
@@ -86,7 +86,8 @@ function callback(details, funcname, num) {
 		}
 		// Recent results are calculated using 500K sampling intervals,
 		// as we are calcualting KPMI, we need to *2/1000.
-		var Ksum = Math.floor(sum * 2 / 10) / 100;
+		//var Ksum = Math.floor(sum * 2 / 10) / 100;
+		var Ksum = Math.floor(metric * 2 / 10) / 100;
 		results[results.length] = [num, "0x" + (+line.addr).toString(16), Ksum, parts[2], parts[0], parts[1], parts[3]];
 	});
 
@@ -112,7 +113,7 @@ function function_details(subfile) {
 	subfile.forEach(function(filename) {
 		d3.json(filename[0], function(error, det) {
 			details = det;
-			callback(details, filename[1], filename[2])
+			callback(details, filename[1], filename[2], filename[3])
 		});
 	});
 
@@ -164,7 +165,7 @@ d3.json("data/main.json", function(error, table) {
 
 	var max_sharing = 0;
 
-	var threshold = 400;
+	var threshold = 25;
 
 //	table.shift(); // remove the first line
 
@@ -326,7 +327,7 @@ d3.json("data/main.json", function(error, table) {
        		.attr("class", "cell")
        		.on("click", function(d) {
        			console.log("data/" + d.num + ".json");
-       			function_details([["data/" + d.num + ".json", d.func, d.num]]);
+       			function_details([["data/" + d.num + ".json", d.func, d.num, d[field]]]);
 				svg.append("rect")
 					.datum(d)
 					.attr("class", "details_view")
@@ -356,7 +357,7 @@ d3.json("data/main.json", function(error, table) {
 		    })
 
 		if (+line[field] > threshold)
-			filesandfunctions[filesandfunctions.length] = ["data/" + line.num + ".json", line.func, line.num];
+			filesandfunctions[filesandfunctions.length] = ["data/" + line.num + ".json", line.func, line.num, line[field]];
 	});
 	function_details(filesandfunctions);
 });
