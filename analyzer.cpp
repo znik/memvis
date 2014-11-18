@@ -287,7 +287,7 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 	rmdir(out_data.c_str());
 	if (int er = mkdir(out_data.c_str(), 0777)) {
 		printf("Cannot create a data dir %s (error: %s)\n", out_data.c_str(), strerror(er));
-		return 0;
+		return;
 	}
 
 #endif // _WIN32
