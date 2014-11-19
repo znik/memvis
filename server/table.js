@@ -36,7 +36,7 @@ var show_uber_table = function(results) {
 			//"paging": false,
     		"data": results,
     		"columns": [
-    			{ "title": "Group #" },
+    			{ "title": "Range #" },
     			{ "title": "Address" },
      			{ "title": "Sharing Intensity*, KPMI" },
      			{ "title": "Function" },
