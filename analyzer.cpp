@@ -251,6 +251,7 @@ namespace /*variables information*/ {
 
 void processingBody(const std::string& out_data, std::istream& injson, const std::string& in_file = std::string()) {
 
+	printf("*writing output data to folder \"%s\"...\n", out_data.c_str());
 	swatch timer;
 
 #ifdef _WIN32
@@ -324,15 +325,15 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 int main(int argc, char *argv[]) {
 	std::string ver(REPORT_VER);
 	std::replace(ver.begin(), ver.end(), ' ', '.');
-	printf("%s, %s, Nik Zaborovsky [nzaborov@sfu.ca], Oct-Nov, 2014\n\n", ver.c_str(), argv[0]);
+	printf("Ver: %s, %s, Nik Zaborovsky [nzaborov@sfu.ca], Oct-Nov, 2014\n\n", ver.c_str(), argv[0]);
 	auto usage = []() {
 		printf("Usage:\n"
 			"\t analyzer [-f trace_file] [-d destination_folder]\n"
 			"\n"
-			"\t \t <trace_file> - a file containing the access trace in the defined format,\n"
-			"\t \t if omitted, stdin will be read;"
-			"\t \t destination_folder - a folder to put the processed results in,\n"
-			"\t \t if omitted, default folder \"data\" will be used.\n");
+			"\t <trace_file> - a file containing the access trace in the defined format,\n"
+			"\t if omitted, stdin will be read;\n\n"
+			"\t <destination_folder> - a folder to put the processed results in,\n"
+			"\t if omitted, default folder \"data\" will be used.\n\n");
 	};
 
 	switch (argc) {
@@ -370,6 +371,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (!source.empty()) {
+		printf("*running in src-file mode...\n");
 		std::ifstream injson;
 		injson.open(source);
 		if (!injson.is_open()) {
@@ -381,9 +383,9 @@ int main(int argc, char *argv[]) {
 		injson.close();
 	}
 	else {
+		printf("*running in stdin-mode...\n");
 		processingBody("server/" + (destination.empty() ? "data" : destination), std::cin);
 	}
-
 	getchar();
 	return 1;
 }
