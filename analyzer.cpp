@@ -305,8 +305,6 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 		jsonfile info(out_data + "/info.json");
 		info.start_collection();
 
-		// TODO FIXME XXX: get a trace name from the trace file (???)
-		
 		std::string fname = in_file;
 		std::replace(fname.begin(), fname.end(), '.', '#');
 		std::replace(fname.begin(), fname.end(), '\\', '@');
@@ -328,31 +326,43 @@ int main(int argc, char *argv[]) {
 	printf("Ver: %s, %s, Nik Zaborovsky [nzaborov@sfu.ca], Oct-Nov, 2014\n\n", ver.c_str(), argv[0]);
 	auto usage = []() {
 		printf("Usage:\n"
-			"\t analyzer [-f trace_file] [-d destination_folder]\n"
+			"\t analyzer [-f trace_file] [-d destination_folder] [-p trace_descr]\n"
 			"\n"
 			"\t <trace_file> - a file containing the access trace in the defined format,\n"
 			"\t if omitted, stdin will be read;\n\n"
 			"\t <destination_folder> - a folder to put the processed results in,\n"
-			"\t if omitted, default folder \"data\" will be used.\n\n");
+			"\t if omitted, default folder \"data\" will be used;\n\n"
+			"\t <trace_descr> - whatever info to be associated with the trace file.\n\n");
 	};
 
 	switch (argc) {
-		case 1:	usage();
-		case 3: case 5: break;
+		case 3: case 5: case 7: break;
 		default: usage(); return 0;
 	}
 
-	std::string source, destination;
-	bool bSrc = false, bDst = false;
+	std::string source, destination, info;
+	auto correct_str = [](const std::string& str) {
+		unsigned i = 0;
+		for(; i < str.size() && std::isalnum(str[i]); ++i);
+		return (i == str.size() - 1);
+	};
+	bool bSrc = false, bDst = false, bInfo = false;
 	for (int i = 1; i < argc; ++i) {
 		if (bSrc) {
 			source = argv[i];
+			//if (!correct_str(source)) break;
 			bSrc = false;
 			continue;
 		}
 		if (bDst) {
 			destination = argv[i];
+			//if (!correct_str(destination)) break;
 			bDst = false;
+			continue;
+		}
+		if (bInfo) {
+			info = argv[i];
+			bInfo = false;
 			continue;
 		}
 		switch (argv[i][0]) {
@@ -366,9 +376,13 @@ int main(int argc, char *argv[]) {
 		case 'd':
 			bDst = true;
 			break;
+		case 'p':
+			bInfo = true;
+			break;
 		default: usage(); return 0;
 		};
 	}
+	if (bDst || bSrc || bInfo) { usage(); return 0; };
 
 	if (!source.empty()) {
 		printf("*running in src-file mode...\n");
@@ -379,12 +393,12 @@ int main(int argc, char *argv[]) {
 			assert(false && "No input file found..\n");
 			return 0;
 		}
-		processingBody("server/" + (destination.empty() ? "data" : destination), injson, source);
+		processingBody("server/" + (destination.empty() ? "data" : destination), injson, info.empty() ? source : info);
 		injson.close();
 	}
 	else {
 		printf("*running in stdin-mode...\n");
-		processingBody("server/" + (destination.empty() ? "data" : destination), std::cin);
+		processingBody("server/" + (destination.empty() ? "data" : destination), std::cin, info);
 	}
 	getchar();
 	return 1;
