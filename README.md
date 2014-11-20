@@ -18,6 +18,10 @@ or read the trace data from the stdin:
 ```
 % ./your_trace_producer | ./analyzer
 ```
+For the last case you can also supply information to be associated with the file (e.g. memo):
+```
+% ./you_trace_producer | ./analyzer -p "Sharing-Mystery-1.json file, that caused problems"
+```
 
 After trace processing is done, everything for visualization will be stored in a folder "server". It should be copied to the server and then the following should be executed:
 ```
