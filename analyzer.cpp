@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <stdlib.h>
 #endif
 
 #include <math.h>
@@ -20,34 +21,22 @@
 #include "jsonwriter.hpp"
 
 
-// We are analyzing 100k consecutive accesses by all threads
-// to determine the metric that serves to determine false sharing.
+// We are analyzing 500k consecutive accesses by all threads
+// to determine the metric that serves to determine sharing/false sharing.
 
 #define SAMPLES_NUM		500000
 #define ONE_PERCENT		(SAMPLES_NUM / 100)
 
-//#define THREADS_NUM		7
-//#define THREADS_NUM		29
 static unsigned MY_THREADS_NUM	= 0;
 
 #define MB	(1 << 20)
-
 #define MIN_REF_THRESHOLD	50
 
-// /O2	-- 497s
+
+const static char* REPORT_VER = "0 4 1 0";
 
 
-const static char* REPORT_VER = "0 4 0 0";
-
-
-namespace /*memory regions information*/ {
-	/*
-	__declspec(align(64)) struct xs_desc_t {
-		__int32 _all;				// how many accesses to the address averall
-		__int32 _thr[THREADS_NUM];
-		char __padding[64 - (sizeof(__int32)*(THREADS_NUM + 1) % 64)];
-	} MEM_REGIONS;
-	*/
+namespace {
 	typedef unsigned long long ull_t;
 }
 
@@ -92,18 +81,9 @@ namespace /*variables information*/ {
 			const std::string& funcname,
 			const std::string& allocloc)				// alloc-location
 		{
-/*			if (threadid >= THREADS_NUM || threadid < 0) {
-				printf("ERROR: unexpected thread id (set THREAD_NUM at least to %d)\n", threadid + 1);
-				assert(false && "ThreadId has unexpected value");
-				return;
-			}
-*/
 			const std::string info_str = info + "(" + varname + ", " + funcname + ", " + allocloc + ")";
 			const int hash = hasher(info_str);
 			const int funchash = hasher(funcname + ":" + varname + ":" + std::to_string(addr / 64));
-
-			// WARNING (FIXME): Possible loss of data if the same address is used
-			// for different vars after freeing
 			
 			std::string& str = _INFO[hash];
 			if (str.empty())
@@ -116,6 +96,7 @@ namespace /*variables information*/ {
 			const short access_type = ("read" == type) ? READ_TYPE : WRITE_TYPE;
 
 			try {
+				// FIXME DOCUMENTME
 				// (Other thread wrote to this address)
 				addr_info_t& addrinfo = _CACHELINE_LOADS.at(addr / 64);
 
@@ -246,18 +227,14 @@ namespace /*variables information*/ {
 				if (MY_THREADS_NUM < threads_count)
 					MY_THREADS_NUM = threads_count;
 			}
-			addr_info_t() : _lastthread(-1), _lastaddr(0), _refs(0) {
-				//memset(_hash_info, 0x0, sizeof(_hash_info));
-				//memset(_thr_refs, 0x0, sizeof(_thr_refs));
-				//memset(_updated, 0x0, sizeof(_updated));
-			}
+			addr_info_t() : _lastthread(-1), _lastaddr(0), _refs(0) {}
+
 			short _lastthread;				// the last thread that wrote/read
 			ull_t _lastaddr;				// the last address accessed
 			std::vector<char> _updated;		// CL has been read
 			int _refs;						// all references to the CL
 			std::vector<int> _hash_info;	// how each thread "call" variable in the CL
 			std::vector<int> _thr_refs;		// number of re-writes per thread
-			//char __padding[64 - (sizeof(__int32)*(2*THREADS_NUM + 2) % 64)];
 		};
 		std::map/*(addr, threadid)*/<ull_t, addr_info_t> _REFS;
 		std::map<ull_t, addr_info_t> _CACHELINE_LOADS;
@@ -277,14 +254,17 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 	swatch timer;
 
 #ifdef _WIN32
-	SHFILEOPSTRUCTA sh = { 0, FO_DELETE, out_data.c_str(), NULL,
+	std::vector<char> path_dbl0(out_data.size() + 2, '\0');
+	memcpy(&path_dbl0[0], out_data.c_str(), out_data.size());
+	SHFILEOPSTRUCTA sh = { 0, FO_DELETE, &path_dbl0[0], NULL,
 		FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION,
 		FALSE, NULL, NULL };
 	SHFileOperationA(&sh);
 
 	CreateDirectoryA((LPCSTR)out_data.c_str(), NULL);
 #else // _WIN32
-	rmdir(out_data.c_str());
+	std::string cmd = "rm -rf " + out_data;
+	system(cmd.c_str());
 	if (int er = mkdir(out_data.c_str(), 0777)) {
 		printf("Cannot create a data dir %s (error: %s)\n", out_data.c_str(), strerror(er));
 		return;
@@ -342,41 +322,66 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 }
 
 int main(int argc, char *argv[]) {
-
-	printf("%s, Nik Zaborovsky [nzaborov@sfu.ca], Oct-Nov, 2014\n\n", argv[0]);
+	std::string ver(REPORT_VER);
+	std::replace(ver.begin(), ver.end(), ' ', '.');
+	printf("%s, %s, Nik Zaborovsky [nzaborov@sfu.ca], Oct-Nov, 2014\n\n", ver.c_str(), argv[0]);
+	auto usage = []() {
+		printf("Usage:\n"
+			"\t analyzer [-f trace_file] [-d destination_folder]\n"
+			"\n"
+			"\t \t <trace_file> - a file containing the access trace in the defined format,\n"
+			"\t \t if omitted, stdin will be read;"
+			"\t \t destination_folder - a folder to put the processed results in,\n"
+			"\t \t if omitted, default folder \"data\" will be used.\n");
+	};
 
 	switch (argc) {
-	case 1:
-		printf("Running in reading-stdin mode... (writing in \"server\\data\" folder)\n");
-		break;
-	case 2:
-		printf("Running in reading-file mode... (writing in \"server\\data\" folder)\n");
-		break;
-	case 3:
-		printf("Running in reading-file mode... (writing in \"server\\%s\" folder)\n", argv[2]);
-		break;
-	default:
-		printf("Usage:\n"
-			"\t analyzer <trace_file> [destination_folder]\n"
-			"\t analyzer - reads stdin\n"
-			"\n*trace_file - a file containing a memory trace in a specific format,\n"
-			"*destination_folder - folder name where to put the processed files.\n");
-		return 0;
+		case 1:	usage();
+		case 3: case 5: break;
+		default: usage(); return 0;
 	}
 
-	if (argc > 1) {
+	std::string source, destination;
+	bool bSrc = false, bDst = false;
+	for (int i = 1; i < argc; ++i) {
+		if (bSrc) {
+			source = argv[i];
+			bSrc = false;
+			continue;
+		}
+		if (bDst) {
+			destination = argv[i];
+			bDst = false;
+			continue;
+		}
+		switch (argv[i][0]) {
+			case '-': break;
+			default: usage(); return 0;
+		};
+		switch (argv[i][1]) {
+		case 'f':
+			bSrc = true;
+			break;
+		case 'd':
+			bDst = true;
+			break;
+		default: usage(); return 0;
+		};
+	}
+
+	if (!source.empty()) {
 		std::ifstream injson;
-		injson.open(argv[1]);
+		injson.open(source);
 		if (!injson.is_open()) {
-			printf("Cannot create/open file %s\n", argv[1]);
+			printf("Cannot open file %s\n", source.c_str());
 			assert(false && "No input file found..\n");
 			return 0;
 		}
-		processingBody("server/" + std::string(argc == 2 ? "data" : argv[2]), injson, argv[1]);
+		processingBody("server/" + (destination.empty() ? "data" : destination), injson, source);
 		injson.close();
 	}
-	else { // argc == 1
-		processingBody("server/data", std::cin);
+	else {
+		processingBody("server/" + (destination.empty() ? "data" : destination), std::cin);
 	}
 
 	getchar();
