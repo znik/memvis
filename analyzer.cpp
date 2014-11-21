@@ -396,12 +396,12 @@ int main(int argc, char *argv[]) {
 			assert(false && "No input file found..\n");
 			return 0;
 		}
-		processingBody("server/" + (destination.empty() ? "data" : destination), injson, info.empty() ? source : info);
+		processingBody(destination.empty() ? "server/data" : destination, injson, info.empty() ? source : info);
 		injson.close();
 	}
 	else {
 		printf("*running in stdin-mode...\n");
-		processingBody("server/" + (destination.empty() ? "data" : destination), std::cin, info);
+		processingBody(destination.empty() ? "server/data" : destination, std::cin, info);
 	}
 	getchar();
 	return 1;
