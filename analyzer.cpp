@@ -265,8 +265,9 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 	CreateDirectoryA((LPCSTR)out_data.c_str(), NULL);
 #else // _WIN32
 	std::string cmd = "rm -rf " + out_data;
-	system(cmd.c_str());
-	if (int er = mkdir(out_data.c_str(), 0777)) {
+	int er = system(cmd.c_str());
+	(void)er;
+	if ((er = mkdir(out_data.c_str(), 0777))) {
 		printf("Cannot create a data dir %s (error: %s)\n", out_data.c_str(), strerror(er));
 		return;
 	}
@@ -341,11 +342,13 @@ int main(int argc, char *argv[]) {
 	}
 
 	std::string source, destination, info;
+	/*
 	auto correct_str = [](const std::string& str) {
 		unsigned i = 0;
 		for(; i < str.size() && std::isalnum(str[i]); ++i);
 		return (i == str.size() - 1);
 	};
+	*/
 	bool bSrc = false, bDst = false, bInfo = false;
 	for (int i = 1; i < argc; ++i) {
 		if (bSrc) {
