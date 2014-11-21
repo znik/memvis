@@ -35,5 +35,6 @@ Now the visualization is accessible from any browser by going to "server_name:80
 ```
 % cp analyzer ./your_folder
 % cd your_folder
-% ./your_trace_producer | ./analyzer -p "My trace file" -d path/to/original/server/folder
+% ./your_trace_producer | ./analyzer -p "My trace file" -d path/to/original/server/folder/data
 ```
+the path is required to end with "/data".
