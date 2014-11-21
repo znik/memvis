@@ -30,3 +30,10 @@ After trace processing is done, everything for visualization will be stored in a
 ```
 
 Now the visualization is accessible from any browser by going to "server_name:8080" ("localhost:8080" if running locally).
+
+# Running analyzer outside of the dir it was compiled in.
+```
+% cp analyzer ./your_folder
+% cd your_folder
+% ./your_trace_producer | ./analyzer -p "My trace file" -d path/to/original/server/folder
+```
