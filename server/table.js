@@ -36,7 +36,7 @@ var show_uber_table = function(results) {
 			//"paging": false,
     		"data": results,
     		"columns": [
-    			{ "title": "Range #" },
+    			//{ "title": "Range #" },
     			{ "title": "Address" },
      			{ "title": "Sharing Intensity*, KPMI" },
      			{ "title": "Function" },
@@ -52,6 +52,8 @@ var show_uber_table = function(results) {
 var results = [];
 var remainingFiles = 0;
 var allFiles = 0;
+var intaddr = new Array();
+var intcnt = new Array();
 
 function callback(details, funcname, num, metric) {
 	details = details.filter(function(d) {
@@ -71,7 +73,7 @@ function callback(details, funcname, num, metric) {
 	}	
 	return false;
 	})
-
+	var results1 = [];
 	details.forEach(function(line) {
 		var sum = 0;
 		var parts = [];
@@ -86,10 +88,25 @@ function callback(details, funcname, num, metric) {
 		}
 		// Recent results are calculated using 500K sampling intervals,
 		// as we are calcualting KPMI, we need to *2/1000.
-		//var Ksum = Math.floor(sum * 2 / 10) / 100;
-		var Ksum = Math.floor(metric * 2 / 10) / 100;
-		results[results.length] = [num, "0x" + (+line.addr).toString(16), Ksum, parts[2], parts[0], parts[1], parts[3]];
+		
+		//var Ksum = Math.floor(metric * 2 / 10) / 100;
+		var Ksum = metric;
+		results1[results1.length] = [num, "0x" + (+line.addr).toString(16), Ksum, parts[2], parts[0], parts[1], parts[3]];
 	});
+
+	results1.forEach(function(line) {
+		var new_val = 0;
+		if (intaddr[line[1]] != undefined)
+			new_val = +(intaddr[line[1]][1]) + +line[2];
+		else
+			new_val = +line[2];
+		intaddr[line[1]] = [line[1], new_val, line[3], line[4], line[5], line[6]];
+
+		if (intcnt[line[1]] == undefined)
+			intcnt[line[1]] = 1;
+		else
+			intcnt[line[1]] += 1;
+	})
 
 	remainingFiles--;
 	
@@ -98,6 +115,12 @@ function callback(details, funcname, num, metric) {
 		.text("  Loading data...");
 
 	if (remainingFiles == 0) {
+		
+		for (var i in intaddr) {
+			intaddr[i][1] = Math.floor(intaddr[i][1] / intcnt[i] * 2/10) / 100;
+			results[results.length] = intaddr[i];
+		};
+
 		d3.select(".meter").remove();
 		show_uber_table(results);
 	}
@@ -105,6 +128,8 @@ function callback(details, funcname, num, metric) {
 
 function function_details(subfile) {
 	results = [];
+	intaddr = new Array();
+	intcnt = new Array();
 	remainingFiles = subfile.length;
 	allFiles = remainingFiles;
 	d3.selectAll(".details_view").remove();
@@ -165,7 +190,7 @@ d3.json("data/main.json", function(error, table) {
 
 	var max_sharing = 0;
 
-	var threshold = 25;
+	var threshold = 25*2/1000;
 
 //	table.shift(); // remove the first line
 
@@ -174,6 +199,8 @@ d3.json("data/main.json", function(error, table) {
 		threshold = new_threshold;
 	else
 		location.href = "index.html?threshold=" + threshold;
+
+	threshold = threshold / 2 * 1000;
 
 	filtered_table = table.filter(function(d){ return +d[field] > threshold; })
 
