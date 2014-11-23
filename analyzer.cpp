@@ -337,6 +337,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	switch (argc) {
+		case 1: usage(); break;
 		case 3: case 5: case 7: break;
 		default: usage(); return 0;
 	}
