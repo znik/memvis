@@ -114,7 +114,7 @@ function callback(details, funcname, num, metric) {
 	d3.select(".meter").append('span').style("width", function() { return (100 * (allFiles - remainingFiles) / allFiles) + "%"; })
 		.text("  Loading data...");
 
-	if (remainingFiles == 0) {
+	if (remainingFiles <= 0) {
 		
 		for (var i in intaddr) {
 			intaddr[i][1] = Math.floor(intaddr[i][1] / intcnt[i] * 2/10) / 100;
@@ -123,6 +123,7 @@ function callback(details, funcname, num, metric) {
 
 		d3.select(".meter").remove();
 		show_uber_table(results);
+		$('select').removeAttr('disabled');
 	}
 }
 
@@ -141,7 +142,8 @@ function function_details(subfile) {
 			callback(details, filename[1], filename[2], filename[3])
 		});
 	});
-
+	if (subfile.length == 0)
+		callback([], "", "", "");
 };
 
 
