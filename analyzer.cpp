@@ -33,7 +33,7 @@ static unsigned MY_THREADS_NUM	= 0;
 #define MIN_REF_THRESHOLD	50
 
 
-const static char* REPORT_VER = "0 4 1 0";
+const static char* REPORT_VER = "0 5 0 0";
 
 
 namespace {
@@ -79,9 +79,10 @@ namespace /*variables information*/ {
 			const std::string& varname,
 			const std::string& type,
 			const std::string& funcname,
-			const std::string& allocloc)				// alloc-location
+			const std::string& allocloc,				// alloc-location
+			const std::string& vartype)					// var-type: type, field offset
 		{
-			const std::string info_str = info + "(" + varname + ", " + funcname + ", " + allocloc + ")";
+			const std::string info_str = info + "(" + varname + ", " + funcname + ", " + allocloc + ", " + vartype + ")";
 			const int hash = hasher(info_str);
 			const int funchash = hasher(funcname + ":" + varname + ":" + std::to_string(addr / 64));
 			
@@ -300,7 +301,7 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 			int tid = std::stoi(stid);
 
 			MY_REFS.ref(tid, addr, line.get("source-location"),
-				line.get("var-name"), line.get("type"), line.get("function"), line.get("alloc-location"));
+				line.get("var-name"), line.get("type"), line.get("function"), line.get("alloc-location"), line.get("var-type"));
 		}
 
 		jsonfile info(out_data + "/info.json");
@@ -337,7 +338,6 @@ int main(int argc, char *argv[]) {
 	};
 
 	switch (argc) {
-		case 1: usage(); break;
 		case 3: case 5: case 7: break;
 		default: usage(); return 0;
 	}
