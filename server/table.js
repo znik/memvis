@@ -41,6 +41,7 @@ var show_uber_table = function(results) {
      			{ "title": "Sharing Intensity*, KPMI" },
      			{ "title": "Function" },
 		    	{ "title": "Source Location" },
+		    	{ "title": "Variable Type"},
     			{ "title": "Variable Name", "class": "center" },
     			{ "title": "Allocation Site", "class": "center" }
     		]
@@ -82,7 +83,7 @@ function callback(details, funcname, num, metric) {
 			var refN = "ref" + i;
 			if (line[refN] != undefined && line[refN] != "0") {
 				var info = line[infN];
-				parts = info.split(/,|\(|\)/);
+				parts = info.split(/,|->|\(|\)/);
 				sum += +line[refN];
 			}
 		}
@@ -91,7 +92,7 @@ function callback(details, funcname, num, metric) {
 		
 		//var Ksum = Math.floor(metric * 2 / 10) / 100;
 		var Ksum = metric;
-		results1[results1.length] = [num, "0x" + (+line.addr).toString(16), Ksum, parts[2], parts[0], parts[1], parts[3]];
+		results1[results1.length] = [num, "0x" + (+line.addr).toString(16), Ksum, parts[2], parts[4], parts[0], parts[1], parts[3], parts[5]];
 	});
 
 	results1.forEach(function(line) {
@@ -100,7 +101,10 @@ function callback(details, funcname, num, metric) {
 			new_val = +(intaddr[line[1]][1]) + +line[2];
 		else
 			new_val = +line[2];
-		intaddr[line[1]] = [line[1], new_val, line[3], line[4], line[5], line[6]];
+		if (line[8] == undefined || line[8] == "")
+			intaddr[line[1]] = [line[1], new_val, line[3], line[5], line[4], line[6], line[7]];
+		else
+			intaddr[line[1]] = [line[1], new_val, line[3], line[5], line[4], line[6] + "->" + line[8], line[7]];
 
 		if (intcnt[line[1]] == undefined)
 			intcnt[line[1]] = 1;
