@@ -83,7 +83,13 @@ function callback(details, funcname, num, metric) {
 			var refN = "ref" + i;
 			if (line[refN] != undefined && line[refN] != "0") {
 				var info = line[infN];
-				parts = info.split(/,|->|\(|\)/);
+				parts = info.split(/,|\(|\)/);
+				var var_and_field = parts[4].split(/->/);
+				parts.pop();
+				parts.pop();
+				parts[parts.length] = var_and_field[0];
+				if (var_and_field[1] != undefined)
+					parts[parts.length] = var_and_field[1];
 				sum += +line[refN];
 			}
 		}
