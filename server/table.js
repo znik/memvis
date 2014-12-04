@@ -84,12 +84,12 @@ function callback(details, funcname, num, metric) {
 			if (line[refN] != undefined && line[refN] != "0") {
 				var info = line[infN];
 				parts = info.split(/,|\(|\)/);
-				var var_and_field = parts[4].split(/->/);
-				parts.pop();
-				parts.pop();
-				parts[parts.length] = var_and_field[0];
-				if (var_and_field[1] != undefined)
-					parts[parts.length] = var_and_field[1];
+				//var var_and_field = parts[4].split(/->/);
+				//parts.pop();
+				//parts.pop();
+				//parts[parts.length] = var_and_field[0];
+				//if (var_and_field[1] != undefined)
+				//	parts[parts.length] = var_and_field[1];
 				sum += +line[refN];
 			}
 		}
@@ -107,10 +107,10 @@ function callback(details, funcname, num, metric) {
 			new_val = +(intaddr[line[1]][1]) + +line[2];
 		else
 			new_val = +line[2];
-		if (line[8] == undefined || line[8] == "")
+		//if (line[8] == undefined || line[8] == "")
 			intaddr[line[1]] = [line[1], new_val, line[3], line[5], line[4], line[6], line[7]];
-		else
-			intaddr[line[1]] = [line[1], new_val, line[3], line[5], line[4], line[6] + "->" + line[8], line[7]];
+		//else
+		//	intaddr[line[1]] = [line[1], new_val, line[3], line[5], line[4], line[6] + "->" + line[8], line[7]];
 
 		if (intcnt[line[1]] == undefined)
 			intcnt[line[1]] = 1;
