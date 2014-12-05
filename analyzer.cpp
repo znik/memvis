@@ -95,7 +95,8 @@ namespace /*variables information*/ {
 				function = funcname + ":" + varname + ":" + std::to_string(addr / 64);
 
 			size_t pos;
-			if (std::string::npos != (pos = vartype.find('>')))
+			if (std::string::npos != (pos = vartype.find('>')) &&
+				pos + 1 < varname.size())
 				function += ":" + varname.substr(pos + 1);
 
 			const short access_type = ("read" == type) ? READ_TYPE : WRITE_TYPE;
@@ -309,8 +310,10 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 					line.get("var-name"), line.get("type"), line.get("function"),
 					line.get("alloc-location"), line.get("var-type"));
 			}
-			catch (...) {
-				fprintf(stderr, "WARNING! wrong thread id: %s", stid.c_str());
+			catch (const std::exception& e) {
+				fprintf(stderr, "WARNING! exception happened: %s\n", e.what());
+				if (0 == strcmp(e.what(), "stoi"))
+					fprintf(stderr, "WARNING! wrong thread id: %s\n", stid.c_str());
 			}
 		}
 
