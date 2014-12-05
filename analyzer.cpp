@@ -95,10 +95,12 @@ namespace /*variables information*/ {
 				function = funcname + ":" + varname + ":" + std::to_string(addr / 64);
 
 			size_t pos;
-			if (std::string::npos != (pos = vartype.find('>')) &&
-				pos + 1 < varname.size())
-				function += ":" + varname.substr(pos + 1);
-
+			if (std::string::npos != (pos = varname.find('>'))) {
+				if (pos + 1 < varname.size())
+					function += ":" + varname.substr(pos + 1);
+				else
+					fprintf(stderr, "WARNING! unexpected var-name: %s\n", varname.c_str());
+			}
 			const short access_type = ("read" == type) ? READ_TYPE : WRITE_TYPE;
 
 			try {
