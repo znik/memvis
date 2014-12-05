@@ -89,10 +89,14 @@ namespace /*variables information*/ {
 			std::string& str = _INFO[hash];
 			if (str.empty())
 				str = info_str;
-			
+
 			std::string& function = _FUNC[funchash];
 			if (function.empty())
 				function = funcname + ":" + varname + ":" + std::to_string(addr / 64);
+
+			size_t pos;
+			if (std::string::npos != (pos = vartype.find('>')))
+				function += ":" + varname.substr(pos + 1);
 
 			const short access_type = ("read" == type) ? READ_TYPE : WRITE_TYPE;
 
@@ -298,10 +302,16 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 			++idx;
 
 			ull_t addr = std::stoull(saddr, 0, 16);
-			int tid = std::stoi(stid);
-
-			MY_REFS.ref(tid, addr, line.get("source-location"),
-				line.get("var-name"), line.get("type"), line.get("function"), line.get("alloc-location"), line.get("var-type"));
+			int tid;
+			try {
+				tid = std::stoi(stid);
+				MY_REFS.ref(tid, addr, line.get("source-location"),
+					line.get("var-name"), line.get("type"), line.get("function"),
+					line.get("alloc-location"), line.get("var-type"));
+			}
+			catch (...) {
+				fprintf(stderr, "WARNING! wrong thread id: %s", stid.c_str());
+			}
 		}
 
 		jsonfile info(out_data + "/info.json");
