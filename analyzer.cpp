@@ -90,13 +90,16 @@ namespace /*variables information*/ {
 			if (str.empty())
 				str = info_str;
 
+			std::string tmp;
 			std::string& function = _FUNC[funchash];
 			if (function.empty())
-				function = funcname + ":" + varname + ":" + std::to_string(addr / 64);
+				tmp = funcname + ":" + varname + ":" + std::to_string(addr / 64);
 
 			size_t pos;
 			if (std::string::npos != (pos = vartype.find('>')))
-				function += ":" + varname.substr(pos + 1);
+				tmp += ":" + varname.substr(pos + 1);
+
+			function = tmp;
 
 			const short access_type = ("read" == type) ? READ_TYPE : WRITE_TYPE;
 
