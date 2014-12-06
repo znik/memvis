@@ -90,20 +90,17 @@ namespace /*variables information*/ {
 			if (str.empty())
 				str = info_str;
 
-			std::string tmp;
 			std::string& function = _FUNC[funchash];
-			if (function.empty())
-				tmp = funcname + ":" + varname + ":" + std::to_string(addr / 64);
-
-			size_t pos;
-
-			if (std::string::npos != (pos = varname.find('>'))) {
-				if (pos + 1 < varname.size())
-					tmp += ":" + varname.substr(pos + 1);
-				else
-					fprintf(stderr, "WARNING! unexpected var-name: %s\n", varname.c_str());
+			if (function.empty()) {
+				function = funcname + ":" + varname + ":" + std::to_string(addr / 64);
+				size_t pos;
+				if (std::string::npos != (pos = varname.find('>'))) {
+					if (pos + 1 < varname.size())
+						function += ":" + varname.substr(pos + 1);
+					else
+						fprintf(stderr, "WARNING! unexpected var-name: %s\n", varname.c_str());
+				}
 			}
-			function = tmp;
 
 			const short access_type = ("read" == type) ? READ_TYPE : WRITE_TYPE;
 
@@ -298,6 +295,11 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 			const std::string &stid = line.get("thread-id");
 			if (saddr.empty() || stid.empty())
 				continue;
+
+			//
+			if (idx / SAMPLES_NUM > 2)
+				break;
+			//
 
 			if (0 != idx && 0 == idx % SAMPLES_NUM) {
 				printf("\r#%d MAX_metric=%d\n", int(idx / SAMPLES_NUM), MY_REFS.max_writes());
