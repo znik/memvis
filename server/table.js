@@ -293,7 +293,7 @@ d3.json("data/main.json", function(error, table) {
 	// ===================== VAR NAMES panel =========================
 
 	var varpan = d3.select("#varnames").append("svg")
-    	.attr("width", 100)
+    	//.attr("width", 200)
     	.attr("height", height + margin.top + margin.bottom)
     	.append("svg:g")
     	.attr("transform", function() {
@@ -316,7 +316,7 @@ d3.json("data/main.json", function(error, table) {
 			var parts = functions[i].split(/:/);
 			if (1 == parts.length)
 				return ""; 
-			return ":" + parts[1].substring(0, 10);
+			return ":" + parts[1].substring(0, 20);
 		});
 
     // ====================== MAIN central panel =======================
