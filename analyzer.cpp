@@ -296,11 +296,6 @@ void processingBody(const std::string& out_data, std::istream& injson, const std
 			if (saddr.empty() || stid.empty())
 				continue;
 
-			//
-			if (idx / SAMPLES_NUM > 2)
-				break;
-			//
-
 			if (0 != idx && 0 == idx % SAMPLES_NUM) {
 				printf("\r#%d MAX_metric=%d\n", int(idx / SAMPLES_NUM), MY_REFS.max_writes());
 
