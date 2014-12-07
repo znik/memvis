@@ -2,9 +2,9 @@
 
 ### SUMMARY
 
-MEMVIS parses traces in json-like format that is described [here](https://github.com/datachi/memdb#understanding-memtracker-traces), analyzes them to find true sharing and false sharing problems and produces an HTML page showing interactive summary.
+MEMVIS parses traces in json-like format that is described [here](https://github.com/datachi/memdb#understanding-memtracker-traces), analyzes them to find true sharing and false sharing problems and produces an HTML page showing an interactive summary.
 
-MEMVIS analyzes the trace and produces descriptor files that should be placed in server/data folder. Then, the "server" folder should be copied to a web-server so to be accessible for viewing from browsers.
+MEMVIS analyzes the trace and produces descriptor files that should be placed to server/data folder. Then, the "server" folder should be copied to a web-server so to be accessible for viewing from browsers.
 
 In the address string there is an argument that regulates the sharing threshold. Variables that have lower sharing intensity won't be shown:
 ```C++
